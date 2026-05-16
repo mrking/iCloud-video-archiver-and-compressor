@@ -7,3 +7,4 @@ dist/
 .env
 *.db
 .DS_Store
+.venv/
