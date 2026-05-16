@@ -53,6 +53,13 @@ class AppConfig(BaseModel):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(default="INFO")
     dry_run: bool = Field(default=True, description="Dry-run by default")
 
+    @field_validator("library_path")
+    @classmethod
+    def _empty_library_path_to_none(cls, v: str | None) -> str | None:
+        if v == "":
+            return None
+        return v
+
     @field_validator("temp_dir")
     @classmethod
     def _ensure_temp_dir(cls, v: str) -> str:
