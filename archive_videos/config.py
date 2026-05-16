@@ -25,8 +25,21 @@ class CompressionConfig(BaseModel):
         "ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"
     ] = Field(default="medium", description="Encoding speed preset")
     max_height: int = Field(default=1080, ge=480, le=4320, description="Max output height")
-    max_bitrate_mbps: float = Field(default=8.0, gt=0, le=100, description="Max bitrate in Mbps")
-    audio_bitrate: str = Field(default="128k", description="Audio bitrate")
+    max_bitrate_mbps: float = Field(
+        default=0.0, le=100.0,
+        description="Max bitrate in Mbps; 0 or negative skips this cap (CRF controls quality only)",
+    )
+    audio_bitrate: str = Field(
+        default="128k",
+        description="Audio bitrate; 'copy' to preserve original audio",
+    )
+
+    @field_validator("crf")
+    @classmethod
+    def crf_range(cls, v: int) -> int:
+        if v < 18:
+            raise ValueError("CRF below 18 produces extremely large files; use 18-28 for good quality.")
+        return v
 
 
 class AppConfig(BaseModel):
