@@ -7,7 +7,7 @@
 [s3]
 bucket = "my-glacier-archive"          # S3 bucket already created in your account
 region = "us-east-1"                   # AWS region for S3 operations
-prefix = "icloud-archiver/"             # S3 key prefix
+prefix = "photos/"             # S3 key prefix
 storage_class = "DEEP_ARCHIVE"          # GLACIER or DEEP_ARCHIVE
 
 # ── Compression settings ────────────────────────────────────────────────────
