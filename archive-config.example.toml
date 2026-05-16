@@ -1,0 +1,28 @@
+# Example configuration for archive-videos
+# Copy to archive-config.toml and customize.
+
+[s3]
+bucket = "my-icloud-archive-bucket"
+region = "us-east-1"
+prefix = "icloud-archiver/"
+storage_class = "DEEP_ARCHIVE"  # or "GLACIER"
+
+[compression]
+codec = "hevc"          # "hevc" (H.265) or "h264" (H.264)
+crf = 23                # 0-51, lower = higher quality
+preset = "medium"       # ultrafast … veryslow
+max_height = 1080       # 480 … 4320
+max_bitrate_mbps = 8.0
+audio_bitrate = "128k"
+
+# Optional: override Photos library path (None = system default)
+library_path = null
+
+# Temp directory for exports and compressed files
+temp_dir = "/tmp/icloud-archiver"
+
+# Logging level
+log_level = "INFO"
+
+# Default dry-run (set to false here only if you want archive-config.toml to override CLI)
+dry_run = true
