@@ -68,7 +68,9 @@ class StateDB:
             conn.commit()
 
     def _conn(self) -> sqlite3.Connection:
-        return sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
 
     def insert_or_update(self, record: VideoRecord) -> None:
         """Upsert a video record."""

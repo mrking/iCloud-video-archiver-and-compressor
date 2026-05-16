@@ -1,0 +1,150 @@
+// OSXPhotos Metadata Template Language (MTL)
+// a TemplateString has format:
+// pre{delim+template_field:subfield(field_arg)|filter[find,replace] conditional&combine_value?bool_value,default}post
+// a TemplateStatement may contain zero or more TemplateStrings
+// The pre and post are optional strings
+// The template itself (inside the {}) is also optional but if present
+// everything but template_field is also optional
+
+Statement:
+    (template_strings+=TemplateString)?
+;
+
+TemplateString:
+    pre=NON_TEMPLATE_STRING?
+    template=Template?
+    post=NON_TEMPLATE_STRING?
+;
+
+Template:
+    (
+    "{"
+    delim=Delim
+    field=Field
+    subfield=SubField
+    fieldarg=FieldArg
+    filter=Filter
+    findreplace=FindReplace
+    conditional=Conditional
+    combine=Combine
+    bool=Boolean
+    default=Default
+    "}"
+    )?
+;
+
+NON_TEMPLATE_STRING:
+    /[^\{\},\?]*/
+;
+
+Delim:
+    (
+    (value=DELIM_WORD)?
+    '+'
+    )?
+;
+
+DELIM_WORD:
+    /[^\{\}]*(?=\+[\w\%])/
+;
+
+Field:
+    FIELD_WORD+
+;
+
+FIELD_WORD:
+    /[\%]?[\.\w]+/
+;
+
+SubField:
+    (
+    ":"-
+    SUBFIELD_WORD+
+    )?
+;
+
+SUBFIELD_WORD:
+    /[\.\w:\/\-\~\'\"\%\@\#\^\’]+/
+    /\\\s/?
+;
+
+Filter:
+    (
+    "|"-
+    (value+=FILTER_FUNCTION['|'])?
+    )?
+;
+
+FILTER_FUNCTION:
+    /[\.\w:\/]+(\([^\)]*\))?/
+;
+
+
+Conditional:
+    (
+    (" "+)-
+    (negation=NEGATION)?
+    (operator=OPERATOR)
+    (" "+)-
+    (value+=Statement['|'])
+    )?
+;
+
+NEGATION:
+    "not "
+;
+
+OPERATOR:
+    "contains" | "matches" | "startswith" | "endswith" | "<=" | ">=" | "<" | ">" | "==" | "!="
+;
+
+FieldArg:
+    (
+    "("
+    (value=/[^\(\)\{\}]+/)?
+    ")"
+    )?
+;
+
+FindReplace:
+    (
+    "["
+    (pairs+=FindReplacePair['|'])?
+    "]"
+    )?
+;
+
+FindReplacePair:
+    find=FIND_WORD
+    ","
+    (replace=REPLACE_WORD)?
+;
+
+FIND_WORD:
+    /[^\[\]\|]*(?=\,)/
+;
+
+REPLACE_WORD:
+    /[^\[\]\|]*/
+;
+
+Combine:
+    (
+    "&"
+    (value=Statement)?
+    )?
+;
+
+Boolean:
+    (
+    "?"
+    (value=Statement)?
+    )?
+;
+
+Default:
+    (
+    ","
+    (value=Statement)?
+    )?
+;

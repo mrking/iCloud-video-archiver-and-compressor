@@ -8,6 +8,11 @@ from archive_videos.config import AppConfig, CompressionConfig, S3Config, load_c
 
 
 SAMPLE_TOML = """
+library_path = "/Users/test/Pictures/Photos Library.photoslibrary"
+temp_dir = "/tmp/test-archiver"
+log_level = "DEBUG"
+dry_run = false
+
 [s3]
 bucket = "test-bucket"
 region = "eu-west-1"
@@ -21,11 +26,6 @@ preset = "slow"
 max_height = 720
 max_bitrate_mbps = 5.0
 audio_bitrate = "96k"
-
-library_path = "/Users/test/Pictures/Photos Library.photoslibrary"
-temp_dir = "/tmp/test-archiver"
-log_level = "DEBUG"
-dry_run = false
 """
 
 

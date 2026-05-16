@@ -1,0 +1,703 @@
+"""exportdb command for osxphotos CLI"""
+
+import json
+import pathlib
+import re
+import sys
+from textwrap import dedent
+
+import click
+from rich import print
+
+import osxphotos
+from osxphotos._constants import OSXPHOTOS_EXPORT_DB, UUID_PATTERN
+from osxphotos._version import __version__
+from osxphotos.export_db import (
+    MAX_EXPORT_RESULTS_DATA_ROWS,
+    OSXPHOTOS_EXPORTDB_VERSION,
+    ExportDB,
+)
+from osxphotos.export_db_utils import (
+    export_db_backup,
+    export_db_check_signatures,
+    export_db_get_about,
+    export_db_get_errors,
+    export_db_get_last_export_dir,
+    export_db_get_last_library,
+    export_db_get_last_run,
+    export_db_get_runs,
+    export_db_get_version,
+    export_db_migrate_photos_library,
+    export_db_save_config_to_file,
+    export_db_touch_files,
+    export_db_update_signatures,
+    export_db_vacuum,
+)
+from osxphotos.sqlite_utils import sqlite_check_integrity, sqlite_repair_db
+from osxphotos.utils import pluralize
+
+from .cli_params import DB_OPTION, THEME_OPTION, TIMESTAMP_OPTION, VERBOSE_OPTION
+from .click_rich_echo import (
+    rich_click_echo,
+    rich_echo,
+    rich_echo_error,
+    set_rich_console,
+    set_rich_theme,
+)
+from .color_themes import get_theme
+from .common import get_photos_db
+from .export import render_and_validate_report
+from .param_types import TemplateString
+from .report_writer import export_report_writer_factory
+from .verbose import get_verbose_console, verbose_print
+
+
+@click.command(name="exportdb")
+@click.option(
+    "--version",
+    is_flag=True,
+    help="Print export database version and exit (this shows the version of osxphotos that originally created the export database).",
+)
+@click.option("--vacuum", is_flag=True, help="Run VACUUM to defragment the database.")
+@click.option(
+    "--create", metavar="VERSION", help="Create a new export database with VERSION."
+)
+@click.option(
+    "--check-signatures",
+    is_flag=True,
+    help="Check signatures for all exported photos in the database to find signatures that don't match.",
+)
+@click.option(
+    "--update-signatures",
+    is_flag=True,
+    help="Update signatures for all exported photos in the database to match on-disk signatures.",
+)
+@click.option(
+    "--touch-file",
+    is_flag=True,
+    help="Touch files on disk to match created date in Photos library and update export database signatures",
+)
+@click.option(
+    "--runs",
+    is_flag=True,
+    help="List osxphotos commands used with this database. See also --last-run.",
+)
+@click.option(
+    "--last-run",
+    is_flag=True,
+    help="Show last run osxphotos commands used with this database. See also --runs.",
+)
+@click.option(
+    "--last-export-dir", is_flag=True, help="Print path to last used export directory"
+)
+@click.option(
+    "--save-config",
+    metavar="CONFIG_FILE",
+    help="Save last run configuration to TOML file for use by --load-config.",
+)
+@click.option(
+    "--info",
+    metavar="FILE_PATH",
+    nargs=1,
+    help="Print information about FILE_PATH contained in the database.",
+)
+@click.option(
+    "--errors",
+    is_flag=True,
+    help="Print list of files that had warnings/errors on export (from all runs).",
+)
+@click.option(
+    "--last-errors",
+    is_flag=True,
+    help="Print list of files that had warnings/errors on last export run.",
+)
+@click.option(
+    "--missing",
+    is_flag=True,
+    help="Print list of UUIDs missing from export database. "
+    "May be used with --library to specify which Photos library to compare to. "
+    "Output format is suitable for use with 'osxphotos export --uuid-from-file'",
+)
+@click.option(
+    "--uuid-files",
+    metavar="UUID",
+    nargs=1,
+    help="List exported files associated with UUID.",
+)
+@click.option(
+    "--uuid-info",
+    metavar="UUID",
+    nargs=1,
+    help="Print information about UUID contained in the database.",
+)
+@click.option(
+    "--uuid",
+    metavar="FILEPATH",
+    nargs=1,
+    help="Print UUID associated with a file in the database",
+)
+@click.option(
+    "--history",
+    metavar="FILE_PATH_OR_UUID",
+    nargs=1,
+    help="Print history of FILE_PATH_OR_UUID contained in the database.",
+)
+@click.option(
+    "--delete-uuid",
+    metavar="UUID",
+    nargs=1,
+    multiple=True,
+    help="Delete all data associated with UUID from the database.",
+)
+@click.option(
+    "--delete-file",
+    metavar="FILE_PATH",
+    nargs=1,
+    multiple=True,
+    help="Delete all data associated with FILE_PATH from the database; does not delete the actual exported file if it exists, only the data in the database.",
+)
+@click.option(
+    "--report",
+    metavar="REPORT_FILE RUN_ID",
+    help="Generate an export report as 'osxphotos export ... --report REPORT_FILE' would have done. "
+    "This allows you to re-create an export report if you didn't use the --report option "
+    "when running 'osxphotos export'. "
+    "The extension of the report file is used to determine the format. "
+    "Valid extensions are: "
+    ".csv (CSV file), .json (JSON), .db and .sqlite (SQLite database). "
+    f"RUN_ID may be any integer from {-MAX_EXPORT_RESULTS_DATA_ROWS} to 0 specifying which run to use. "
+    "For example, '--report report.csv 0' will generate a CSV report for the last run and "
+    "'--report report.json -1' will generate a JSON report for the second-to-last run "
+    "(one run prior to last run). "
+    "REPORT_FILE may be a template string (see Templating System), for example, "
+    "--report 'export_{today.date}.csv' will write a CSV report file named with today's date. "
+    "See also --append.",
+    type=(TemplateString(), click.IntRange(-(MAX_EXPORT_RESULTS_DATA_ROWS - 1), 0)),
+)
+@click.option(
+    "--upgrade",
+    is_flag=True,
+    help="Upgrade (if needed) export database to current version.",
+)
+@click.option("--check", is_flag=True, help="Check export database for errors.")
+@click.option(
+    "--repair",
+    is_flag=True,
+    help="Repair export database. This may be useful if the export database is corrupted and osxphotos reports 'database disk image is malformed' errors. ",
+)
+@click.option(
+    "--sql",
+    metavar="SQL_STATEMENT",
+    help="Execute SQL_STATEMENT against export database and print results.",
+)
+@click.option(
+    "--migrate-photos-library",
+    metavar="PHOTOS_LIBRARY",
+    help="Migrate the export database to use the specified Photos library. Use this if you have moved your Photos library to a new location or computer and want to keep using the same export database. This will update the UUIDs in the export database to match the new Photos library.",
+    type=click.Path(exists=True, file_okay=True, dir_okay=True),
+)
+@click.option(
+    "--export-dir",
+    help="Optional path to export directory (if not parent of export database).",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+)
+@click.option(
+    "--append",
+    is_flag=True,
+    help="If used with --report, add data to existing report file instead of overwriting it. See also --report.",
+)
+@VERBOSE_OPTION
+@TIMESTAMP_OPTION
+@THEME_OPTION
+@DB_OPTION
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Run in dry-run mode (don't actually update files); for example, use with --update-signatures or --migrate-photos-library.",
+)
+@click.argument("export_db", metavar="EXPORT_DATABASE", type=click.Path())
+def exportdb(
+    append,
+    check,
+    check_signatures,
+    create,
+    dry_run,
+    export_db,
+    export_dir,
+    info,
+    errors,
+    last_errors,
+    last_export_dir,
+    last_run,
+    migrate_photos_library,
+    repair,
+    report,
+    runs,
+    save_config,
+    sql,
+    theme,
+    timestamp,
+    touch_file,
+    update_signatures,
+    upgrade,
+    missing,
+    uuid_files,
+    uuid_info,
+    uuid,
+    history,
+    delete_uuid,
+    delete_file,
+    vacuum,
+    verbose_flag,
+    version,
+    db,
+):
+    """Utilities for working with the osxphotos export database"""
+    verbose = verbose_print(verbose=verbose_flag, timestamp=timestamp, theme=theme)
+
+    # validate options and args
+    if append and not report:
+        rich_echo_error(
+            "[error]Error: --append requires --report; see --help for more information.[/]",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    export_db = pathlib.Path(export_db)
+    if export_db.is_dir():
+        # assume it's the export folder
+        export_db = export_db / OSXPHOTOS_EXPORT_DB
+        if not export_db.is_file() and not create:
+            rich_echo_error(
+                f"[error]Error: {OSXPHOTOS_EXPORT_DB} missing from {export_db.parent}[/error]"
+            )
+            sys.exit(1)
+
+    export_dir = export_dir or export_db.parent
+
+    sub_commands = [
+        bool(cmd)
+        for cmd in [
+            check,
+            check_signatures,
+            create,
+            info,
+            last_run,
+            last_export_dir,
+            upgrade,
+            repair,
+            report,
+            runs,
+            save_config,
+            sql,
+            touch_file,
+            update_signatures,
+            uuid_files,
+            uuid_info,
+            uuid,
+            vacuum,
+            version,
+            missing,
+        ]
+    ]
+    if sum(sub_commands) > 1:
+        rich_echo_error(
+            "[error]Only a single sub-command may be specified at a time[/error]"
+        )
+        sys.exit(1)
+
+    # process sub-commands
+    # TODO: each of these should be a function call
+    if version:
+        try:
+            osxphotos_ver, export_db_ver = export_db_get_version(export_db)
+            about_str = export_db_get_about(export_db)
+            # find create date by searching for this pattern:
+            # on 2024-01-22 05:58:19.171571
+            date_created = re.search(r" on (\d{4}.*)$", about_str).group(1)
+
+        except Exception as e:
+            rich_echo_error(
+                f"[error]Error: could not read version from {export_db}: {e}[/error]"
+            )
+            sys.exit(1)
+        else:
+            rich_echo(
+                f"Export database version: [num]{export_db_ver}[/], created by osxphotos version [num]{osxphotos_ver}[/] on [time]{date_created}[/]"
+            )
+        sys.exit(0)
+
+    if create:
+        if pathlib.Path(export_db).exists():
+            rich_echo_error(
+                f"[error]Error: export database {export_db} already exists[/error]"
+            )
+            sys.exit(1)
+
+        if not float("4.3") <= float(create) <= float(OSXPHOTOS_EXPORTDB_VERSION):
+            rich_echo_error(
+                f"[error]Error: invalid version number {create}: must be between >= 4.3, <= {OSXPHOTOS_EXPORTDB_VERSION}[/]"
+            )
+            sys.exit(1)
+
+        try:
+            ExportDB(export_db, export_dir, create)
+        except Exception as e:
+            rich_echo_error(f"[error]Error: {e}[/error]")
+            sys.exit(1)
+        else:
+            rich_echo(f"Created export database [filepath]{export_db}[/]")
+            sys.exit(0)
+
+    if check:
+        errors = sqlite_check_integrity(export_db)
+        if not errors:
+            rich_echo(f"Ok: [filepath]{export_db}[/]")
+            sys.exit(0)
+        else:
+            rich_echo_error(f"[error]Errors: [filepath]{export_db}[/][/error]")
+            for error in errors:
+                rich_echo_error(error)
+            sys.exit(1)
+
+    if repair:
+        try:
+            sqlite_repair_db(export_db)
+        except Exception as e:
+            rich_echo_error(f"[error]Error: {e}[/error]")
+            sys.exit(1)
+        else:
+            rich_echo(f"Ok: [filepath]{export_db}[/]")
+            sys.exit(0)
+
+    if vacuum:
+        try:
+            start_size = pathlib.Path(export_db).stat().st_size
+            export_db_vacuum(export_db)
+        except Exception as e:
+            rich_echo_error(f"[error]Error: {e}[/error]")
+            sys.exit(1)
+        else:
+            rich_echo(
+                f"Vacuumed {export_db}! [num]{start_size}[/] bytes -> [num]{pathlib.Path(export_db).stat().st_size}[/] bytes"
+            )
+            sys.exit(0)
+
+    if update_signatures:
+        try:
+            updated, skipped = export_db_update_signatures(
+                export_db, export_dir, verbose, dry_run
+            )
+        except Exception as e:
+            rich_echo_error(f"[error]Error: {e}[/error]")
+            sys.exit(1)
+        else:
+            rich_echo(
+                f"Done. Updated [num]{updated}[/] files, skipped [num]{skipped}[/] files."
+            )
+            sys.exit(0)
+
+    if runs:
+        try:
+            run_info = export_db_get_runs(export_db)
+        except Exception as e:
+            rich_echo_error(f"[error]Error: {e}[/error]")
+            sys.exit(1)
+        else:
+            for run in run_info:
+                rich_echo(f"[time]{run[0]}[/]: {run[1]} {run[2]}")
+            sys.exit(0)
+
+    if last_run:
+        try:
+            last_run_info = export_db_get_last_run(export_db)
+        except Exception as e:
+            rich_echo_error(f"[error]Error: {e}[/error]")
+            sys.exit(1)
+        else:
+            rich_echo(f"last run at [time]{last_run_info[0]}:")
+            rich_echo(f"{last_run_info[1]}")
+            sys.exit(0)
+
+    if last_export_dir:
+        try:
+            last_path = export_db_get_last_export_dir(export_db)
+        except Exception as e:
+            rich_echo_error(f"[error]Error: {e}[/error]")
+            sys.exit(1)
+        else:
+            if last_path:
+                rich_echo(f"[filepath]{last_path}[/]")
+                sys.exit(0)
+            else:
+                rich_echo(f"No last export directory found")
+                sys.exit(1)
+
+    if save_config:
+        try:
+            export_db_save_config_to_file(export_db, save_config)
+        except Exception as e:
+            rich_echo_error(f"[error]Error: {e}[/error]")
+            sys.exit(1)
+        else:
+            rich_echo(f"Saved configuration to [filepath]{save_config}")
+            sys.exit(0)
+
+    if check_signatures:
+        try:
+            matched, notmatched, skipped = export_db_check_signatures(
+                export_db, export_dir, verbose_=verbose
+            )
+        except Exception as e:
+            rich_echo_error(f"[error]Error: {e}[/error]")
+            sys.exit(1)
+        else:
+            rich_echo(
+                f"Done. Found [num]{matched}[/] matching signatures and [num]{notmatched}[/] signatures that don't match. Skipped [num]{skipped}[/] missing files."
+            )
+            sys.exit(0)
+
+    if touch_file:
+        try:
+            touched, not_touched, skipped = export_db_touch_files(
+                export_db, export_dir, verbose_=verbose, dry_run=dry_run
+            )
+        except Exception as e:
+            rich_echo_error(f"[error]Error: {e}[/error]")
+            sys.exit(1)
+        else:
+            rich_echo(
+                f"Done. Touched [num]{touched}[/] files, skipped [num]{not_touched}[/] up to date files, skipped [num]{skipped}[/] missing files."
+            )
+            sys.exit(0)
+
+    if info:
+        exportdb = ExportDB(export_db, export_dir)
+        try:
+            info_rec = exportdb.get_file_record(info)
+        except Exception as e:
+            rich_echo_error(f"[error]Error: {e}[/error]")
+            sys.exit(1)
+        else:
+            if info_rec:
+                # use rich print as rich_echo doesn't highlight json
+                print(info_rec.json(indent=2))
+            else:
+                rich_echo(f"[error]File '{info}' not found in export database[/error]")
+            sys.exit(0)
+
+    if errors:
+        # list errors
+        try:
+            error_list = export_db_get_errors(export_db)
+        except Exception as e:
+            rich_echo_error(f"[error]Error: {e}[/error]")
+            sys.exit(1)
+        else:
+            if error_list:
+                for error in error_list:
+                    rich_echo(error)
+            else:
+                rich_echo("No errors found")
+            sys.exit(0)
+
+    if last_errors:
+        exportdb = ExportDB(export_db, export_dir)
+        if export_results := exportdb.get_export_results(0):
+            for error in [
+                *export_results.error,
+                *export_results.exiftool_error,
+                *export_results.exiftool_warning,
+            ]:
+                rich_click_echo(
+                    f"[filepath]{error[0]}[/], [time]{export_results.datetime}[/], [error]{error[1]}[/]"
+                )
+            sys.exit(0)
+        else:
+            rich_echo_error("[error]Results from last run not found in database[/]")
+            sys.exit(1)
+
+    if uuid_info:
+        # get photoinfo record for a uuid
+        exportdb = ExportDB(export_db, export_dir)
+        try:
+            info_rec = exportdb.get_photoinfo_for_uuid(uuid_info)
+        except Exception as e:
+            rich_echo_error(f"[error]Error: {e}[/error]")
+            sys.exit(1)
+        else:
+            if info_rec:
+                # use rich print as rich_echo doesn't highlight json
+                print(json.dumps(json.loads(info_rec), sort_keys=True, indent=2))
+            else:
+                rich_echo(
+                    f"[error]UUID '{uuid_info}' not found in export database[/error]"
+                )
+            sys.exit(0)
+
+    if uuid_files:
+        # list files associated with a uuid
+        exportdb = ExportDB(export_db, export_dir)
+        try:
+            file_list = exportdb.get_files_for_uuid(uuid_files)
+        except Exception as e:
+            rich_echo_error(f"[error]Error: {e}[/error]")
+            sys.exit(1)
+        else:
+            if file_list:
+                for f in file_list:
+                    rich_echo(f"[filepath]{f}[/]")
+            else:
+                rich_echo(
+                    f"[error]UUID '{uuid_files}' not found in export database[/error]"
+                )
+            sys.exit(0)
+
+    if uuid:
+        # Print UUID for a file
+        exportdb = ExportDB(export_db, export_dir)
+        try:
+            info_rec = exportdb.get_file_record(uuid)
+        except Exception as e:
+            rich_echo_error(f"[error]Error: {e}[/error]")
+            sys.exit(1)
+        else:
+            if info_rec:
+                rich_echo(info_rec.uuid)
+            else:
+                rich_echo(f"[error]File '{uuid}' not found in export database[/error]")
+            sys.exit(0)
+
+    if history:
+        # get history for a file or uuid
+        exportdb = ExportDB(export_db, export_dir)
+        if re.match(UUID_PATTERN, history):
+            kwargs = {"uuid": history}
+        else:
+            kwargs = {"filepath": history}
+        try:
+            history_list = exportdb.get_history(**kwargs)
+        except Exception as e:
+            rich_echo_error(f"[error]Error: {e}[/error]")
+            sys.exit(1)
+
+        for item in history_list:
+            rich_echo(f"[date]{item[0]}[/], [filepath]{item[1]}[/], [uuid]{item[2]}[/]")
+
+        sys.exit(0)
+
+    if delete_uuid:
+        # delete a uuid from the export database
+        exportdb = ExportDB(export_db, export_dir)
+        for uuid in delete_uuid:
+            rich_echo(f"Deleting uuid [uuid]{uuid}[/] from database.")
+            count = exportdb.delete_data_for_uuid(uuid)
+            rich_echo(
+                f"Deleted [num]{count}[/] {pluralize(count, 'record', 'records')}."
+            )
+        sys.exit(0)
+
+    if delete_file:
+        # delete information associated with a file from the export database
+        exportdb = ExportDB(export_db, export_dir)
+        for filepath in delete_file:
+            rich_echo(f"Deleting file [filepath]{filepath}[/] from database.")
+            count = exportdb.delete_data_for_filepath(filepath)
+            rich_echo(
+                f"Deleted [num]{count}[/] {pluralize(count, 'record', 'records')}."
+            )
+            sys.exit(0)
+
+    if report:
+        exportdb = ExportDB(export_db, export_dir)
+        report_template, run_id = report
+        report_filename = render_and_validate_report(report_template, "", export_dir)
+        export_results = exportdb.get_export_results(run_id)
+        if not export_results:
+            rich_echo_error(
+                f"[error]No report results found for run ID {run_id}[/error]"
+            )
+            sys.exit(1)
+        try:
+            report_writer = export_report_writer_factory(report_filename, append=append)
+        except ValueError as e:
+            rich_echo_error(f"[error]Error: {e}[/error]")
+            sys.exit(1)
+        report_writer.write(export_results)
+        report_writer.close()
+        rich_echo(f"Wrote report to [filepath]{report_filename}[/]")
+        sys.exit(0)
+
+    if upgrade:
+        exportdb = ExportDB(export_db, export_dir)
+        if upgraded := exportdb.was_upgraded:
+            rich_echo(
+                f"Upgraded export database [filepath]{export_db}[/] from version [num]{upgraded[0]}[/] to [num]{upgraded[1]}[/]"
+            )
+        else:
+            rich_echo(
+                f"Export database [filepath]{export_db}[/] is already at latest version [num]{OSXPHOTOS_EXPORTDB_VERSION}[/]"
+            )
+        sys.exit(0)
+
+    if sql:
+        exportdb = ExportDB(export_db, export_dir)
+        try:
+            c = exportdb._conn.cursor()
+            results = c.execute(sql)
+        except Exception as e:
+            rich_echo_error(f"[error]Error: {e}[/error]")
+            sys.exit(1)
+        else:
+            for row in results:
+                print(row)
+            sys.exit(0)
+
+    if migrate_photos_library:
+        # migrate Photos library to new library and update UUIDs in export database
+        last_library = export_db_get_last_library(export_db)
+        rich_echo(
+            dedent(
+                f"""
+        [warning]:warning-emoji:  This command will update your export database ([filepath]{export_db}[/])
+        to use [filepath]{migrate_photos_library}[/] as the new source library.
+        The last library used was [filepath]{last_library}[/].
+        This will allow you to use the export database with the new library but it will
+        no longer work correctly with the old library unless you run the '--migrate-photos-library'
+        command again to update the export database to use the previous library.
+
+        A backup of the export database will be created in the same directory as the export database.
+        """
+            )
+        )
+        if not click.confirm("Do you want to continue?"):
+            sys.exit(0)
+        if not dry_run:
+            backup_file = export_db_backup(export_db)
+            verbose(f"Backed up export database to [filepath]{backup_file}[/]")
+        migrated, notmigrated = export_db_migrate_photos_library(
+            export_db, migrate_photos_library, verbose, dry_run
+        )
+        rich_echo(
+            f"Migrated [num]{migrated}[/] {pluralize(migrated, 'photo', 'photos')}, [num]{notmigrated}[/] not migrated."
+        )
+
+    if missing:
+        # find UUIDs from library that are missing in the export DB
+        db = get_photos_db(db)
+        if not db:
+            rich_echo_error(
+                f"[error]Could not find Photos library; use --library to specify path to library[/error]"
+            )
+            sys.exit(1)
+        exportdb = ExportDB(dbfile=export_db, export_dir=export_dir)
+        rich_echo_error("Loading Photos library...")
+        all_photos = osxphotos.PhotosDB(dbfile=db).photos()
+        for p in all_photos:
+            files = exportdb.get_files_for_uuid(p.uuid)
+            # need to check files where a sidecar might have been generated for a missing photo
+            # if all files in files end with .xmp, .XMP, .json, .JSON, then only sidecar was exported
+            if not files or all(
+                f.endswith((".xmp", ".XMP", ".json", ".JSON")) for f in files
+            ):
+                print(f"# {p.original_filename}\n{p.uuid}")

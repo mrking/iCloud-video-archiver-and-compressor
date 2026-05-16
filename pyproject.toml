@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "iCloud-video-archiver-and-compressor"
 version = "0.1.0"
 description = "Automated export, compression, S3 Glacier backup, and reimport of uncompressed videos from macOS Photos.app"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [

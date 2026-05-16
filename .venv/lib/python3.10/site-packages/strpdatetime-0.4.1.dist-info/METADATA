@@ -1,0 +1,120 @@
+Metadata-Version: 2.4
+Name: strpdatetime
+Version: 0.4.1
+Summary: Parse strings into Python datetime objects; extends Python's datetime.strptime() with additional features.
+Author-email: Rhet Turnbull <rturnbull+git@gmail.com>
+License-File: LICENSE
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: Python Software Foundation License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Programming Language :: Python :: 3.14
+Classifier: Topic :: Software Development :: Libraries
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Classifier: Topic :: Utilities
+Requires-Python: >=3.9
+Requires-Dist: textx<5.0.0,>=4.0.1
+Provides-Extra: dev
+Requires-Dist: mypy>=0.991; extra == 'dev'
+Requires-Dist: pytest-mypy>=0.10.1; extra == 'dev'
+Requires-Dist: pytest<9.0.0,>8.0.0; extra == 'dev'
+Description-Content-Type: text/markdown
+
+# strpdatetime
+
+A replacement for `datetime.datetime.strptime` with super powers. `strpdatetime` is a drop-in replacement for `datetime.datetime.strptime` that adds a simplified regex-like syntax for finding and extracting date and time information from strings.
+
+## Why this package?
+
+A common use case is parsing date/time information from strings, for example filenames with
+the date and time embedded in them. The standard library's `datetime.datetime.strptime` works
+well if the string perfectly matches the format string, but does not work if the string
+contains additional characters. For example, `datetime.datetime.strptime("IMG_1234_2022_11_20.jpeg", "%Y_%m_%d")` will fail with `ValueError: time data 'IMG_1234_2022_11_20.jpeg' does not match format '%Y_%m_%d'`. To use `datetime.datetime.strptime` in this case, you would need to first parse the string to remove the extra characters.
+
+Third-party packages such as [dateutil](https://github.com/dateutil/dateutil) and [datefinder](https://github.com/akoumjian/datefinder) are more flexible but still fail to find the date in the above example and other common filename date/time formats.
+
+`strpdatetime` can find the date in the above example using `strpdatetime("IMG_1234_2022_11_20.jpeg", "^IMG_*_%Y_%m_%d")`
+
+## Installation
+
+`pip install strpdatetime`
+
+To install from source:
+
+- Clone the repository
+- Change to the project directory
+- Install [uv](https://github.com/astral-sh/uv): `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- Create the virtual environment: `uv venv` or `uv venv --python 3.13` to specify a specific version
+- Activate the virtual environment: `source .venv/bin/activate`
+- Install package dependencies: `uv pip install -r pyproject.toml --extra dev`
+
+## Source Code
+
+The source code is available on [GitHub](https://github.com/RhetTbull/strpdatetime).
+
+## Usage
+
+```pycon
+>>> import datetime
+>>> from strpdatetime import strpdatetime
+>>> dt = strpdatetime("IMG_1234_2022_11_20.jpeg","^IMG_*_%Y_%m_%d.*")
+>>> assert dt == datetime.datetime(2022,11,20)
+>>>
+```
+
+## Syntax
+
+In addition to the standard `strptime` [format codes](https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes), `strpdatetime` supports the following:
+
+- *: Match any number of characters
+- ^: Match the beginning of the string
+- $: Match the end of the string
+- {n}: Match exactly n characters
+- {n,}: Match at least n characters
+- {n,m}: Match at least n characters and at most m characters
+- In addition to `%%` for a literal `%`, the following format codes are supported:
+    `%^`, `%$`, `%*`, `%|`, `%{`, `%}` for `^`, `$`, `*`, `|`, `{`, `}` respectively
+- |: join multiple format codes; each code is tried in order until one matches
+- Unlike the standard library, the leading zero is not optional for %d, %m, %H, %I, %M, %S, %j, %U, %W, and %V
+- For optional leading zero, use %-d, %-m, %-H, %-I, %-M, %-S, %-j, %-U, %-W, and %-V
+
+## Examples
+
+```pycon
+>>> from strpdatetime import strpdatetime
+>>> strpdatetime("IMG_1234_2022_11_20.jpg","^IMG_{4}_%Y_%m_%d")
+datetime.datetime(2022, 11, 20, 0, 0)
+>>> strpdatetime("IMG_1234_2022_11_20.jpg","IMG_*_%Y_%m_%d")
+datetime.datetime(2022, 11, 20, 0, 0)
+>>> strpdatetime("1234_05_06_2022_11_20","%Y_%m_%d$")
+datetime.datetime(2022, 11, 20, 0, 0)
+>>> strpdatetime("1234_05_06_2022_11_20","IMG_*_%Y_%m_%d|%Y_%m_%d$")
+datetime.datetime(2022, 11, 20, 0, 0)
+>>>
+```
+
+## Command Line
+
+`strpdatetime` includes a very simple command line interface. It can be used to test the regex-like syntax. Use `python -m strpdatetime --help` for more information.
+
+```bash
+python -m strpdatetime "^IMG_*_%Y_%m_%d|IMG{4}_%Y-%m-%d-%H%M%S" *.jpg
+IMG1234_2022-11-20-063400.jpg, 2022-11-20T06:34:00
+IMG_1234_2022_11_21.jpg, 2022-11-21T00:00:00
+time data 'IMG_2132.jpg' does not match format '^IMG_*_%Y_%m_%d|IMG{4}_%Y-%m-%d-%H%M%S'
+IMG_2132.jpg,
+IMG_5678_2022_11_20.jpg, 2022-11-20T00:00:00
+```
+
+## License
+
+To ensure backwards compatibility with the Python standard library, `strpdatetime` makes use of original code from the standard library and is thus licensed under the Python Software Foundation License, just as Python itself is.
+
+## Contributing
+
+Contributions of all kinds are welcome! Please open an issue or pull request on [GitHub](https://github.com/RhetTbull/strpdatetime).

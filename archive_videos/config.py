@@ -56,7 +56,7 @@ def load_config(path: str | Path) -> AppConfig:
     raw = toml.loads(config_path.read_text(encoding="utf-8"))
 
     # Resolve library path default
-    raw.setdefault("library_path", None)
+    raw.setdefault("library_path", raw.get("library_path"))
 
     return AppConfig.model_validate(raw)
 
