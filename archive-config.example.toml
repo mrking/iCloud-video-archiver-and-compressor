@@ -11,6 +11,7 @@ prefix = "photos/"             # S3 key prefix
 storage_class = "DEEP_ARCHIVE"          # GLACIER or DEEP_ARCHIVE
 
 [filter]
+# Bitrate filter uses original_filesize from Photos DB, works even for iCloud-optimized storage
 # Only process videos larger than this (in MB). 0 = no size filter.
 min_file_size_mb = 0
 # Only process videos with bitrate above this (in Mbps). 0 = no bitrate filter.

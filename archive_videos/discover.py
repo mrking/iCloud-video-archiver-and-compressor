@@ -47,19 +47,25 @@ class PhotosLibrary(Protocol):
 
 
 def _get_bitrate_mbps(photo: osxphotos.PhotoInfo) -> float | None:
-    """Estimate bitrate in Mbps from photo metadata if available."""
-    # osxphotos exposes original_height/width; we can estimate from file size + duration.
+    """Estimate bitrate in Mbps from photo metadata."""
     duration = getattr(photo, "duration", 0.0) or 0.0
     if duration <= 0:
         return None
+
+    # Use original_filesize from Photos DB (works even if file not downloaded)
+    size_bytes = getattr(photo, "original_filesize", None)
+    if isinstance(size_bytes, (int, float)) and size_bytes > 0:
+        return round((size_bytes * 8) / (duration * 1_000_000), 2)
+
+    # Fallback to file path if DB size unavailable
     try:
-        # Prefer original file size
         fpath = photo.path_original or photo.path
         if fpath:
             size_bytes = Path(fpath).stat().st_size
             return round((size_bytes * 8) / (duration * 1_000_000), 2)
     except (OSError, AttributeError):
         pass
+
     return None
 
 
