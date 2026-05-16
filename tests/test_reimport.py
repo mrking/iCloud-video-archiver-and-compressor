@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 
@@ -70,8 +71,7 @@ def test_delete_original_dry_run_logs_only(mock_osascript, sample_asset):
 def test_delete_original_exec_calls_osascript_with_uuid(mock_osascript, sample_asset):
     delete_original(sample_asset, dry_run=False)
     mock_osascript.assert_called_once()
-    call_args = mock_osascript.call_args[0][0]
-    assert sample_asset.uuid in call_args
+    assert sample_asset.uuid in mock_osascript.call_args[0][0]
 
 
 # ── import_compressed tests ───────────────────────────────────────────────────
@@ -89,7 +89,6 @@ def test_import_compressed_dry_run_logs_and_returns_none(mock_osascript, tmp_pat
 
 def test_import_compressed_file_not_found():
     nonexistent = Path("/tmp/does_not_exist.mp4")
-
     with pytest.raises(FileNotFoundError):
         import_compressed(nonexistent, dry_run=False)
 
@@ -104,8 +103,7 @@ def test_import_compressed_exec_calls_osascript(mock_osascript, tmp_path):
 
     assert result == "new-uuid-from-photos"
     mock_osascript.assert_called_once()
-    call_args = mock_osascript.call_args[0][0]
-    assert str(video) in call_args
+    assert str(video) in mock_osascript.call_args[0][0]
 
 
 # ── restore_metadata tests ─────────────────────────────────────────────────────
@@ -121,75 +119,53 @@ def test_restore_metadata_exec_sets_date_favorite_albums(mock_osascript, sample_
     restore_metadata("new-uuid", sample_asset, dry_run=False)
 
     calls = [str(c[0][0]) for c in mock_osascript.call_args_list]
-    joined = " ".join(calls)
-
-    # Date
     assert any(sample_asset.date in c for c in calls)
-    # Favorite (true since asset.favorite is True)
     assert any("true" in c for c in calls)
-    # Album
     assert any("Summer 2024" in c for c in calls)
 
 
 @patch("archive_videos.reimport._osascript")
 def test_restore_metadata_no_date_no_albums_still_succeeds(mock_osascript, asset_no_date_no_albums):
-    """No date / no albums should not call osascript (or fail silently)."""
     restore_metadata("new-uuid", asset_no_date_no_albums, dry_run=False)
-    # Only favorite call
-    assert mock_osascript.call_count == 1
+    assert mock_osascript.call_count == 1  # only favorite
 
 
-@patch("archive_videos.reimport._osascript")
-def test_restore_metadata_albums_multiple(mock_osascript, sample_asset):
-    multi_album_asset = VideoAsset(
-        uuid=sample_asset.uuid,
-        filename=sample_asset.filename,
-        path=sample_asset.path,
-        duration=sample_asset.duration,
-        codec=sample_asset.codec,
-        bitrate_mbps=sample_asset.bitrate_mbps,
-        width=sample_asset.width,
-        height=sample_asset.height,
-        date=sample_asset.date,
-        title=sample_asset.title,
-        keywords=sample_asset.keywords,
-        albums=["Album A", "Album B", "Album C"],
-        favorite=sample_asset.favorite,
-        location=sample_asset.location,
-    )
-    restore_metadata("new-uuid", multi_album_asset, dry_run=False)
+def test_restore_metadata_albums_multiple(sample_asset):
+    multi_album_asset = replace(sample_asset, albums=["Album A", "Album B", "Album C"])
 
-    calls = [str(c[0][0]) for c in mock_osascript.call_args_list]
-    assert any("Album A" in c for c in calls)
-    assert any("Album B" in c for c in calls)
-    assert any("Album C" in c for c in calls)
+    with patch("archive_videos.reimport._osascript") as mock_osascript:
+        restore_metadata("new-uuid", multi_album_asset, dry_run=False)
+
+        calls = [str(c[0][0]) for c in mock_osascript.call_args_list]
+        assert any("Album A" in c for c in calls)
+        assert any("Album B" in c for c in calls)
+        assert any("Album C" in c for c in calls)
 
 
 @patch("archive_videos.reimport._osascript")
 def test_restore_metadata_osascript_failure_is_warning_not_error(mock_osascript, sample_asset):
+    """OSascript failure should be caught and logged, not propagate."""
     mock_osascript.side_effect = RuntimeError("AppleScript failed")
-    # Should NOT raise — just logs warning
-    restore_metadata("new-uuid", sample_asset, dry_run=False)
+    restore_metadata("new-uuid", sample_asset, dry_run=False)  # must not raise
 
 
 # ── reimport_asset tests ──────────────────────────────────────────────────────
 
-@patch("archive_videos.reimport.delete_original")
 @patch("archive_videos.reimport.import_compressed")
-def test_reimport_asset_dry_run_no_subprocess_calls(
-    mock_import, mock_delete, sample_asset, tmp_path
+@patch("archive_videos.reimport.delete_original")
+def test_reimport_asset_dry_run_no_restore(
+    mock_delete, mock_import, sample_asset, tmp_path
 ):
-    mock_import.return_value = None
+    """With dry_run=True, delete_original and import_compressed are called but restore_metadata is skipped because import returns None."""
     compressed = tmp_path / "compressed.mp4"
     compressed.write_bytes(b"data")
+    mock_import.return_value = None
 
     result = reimport_asset(sample_asset, compressed, dry_run=True)
 
     assert result is None
-    # delete_original called with dry_run=True (logs only)
     mock_delete.assert_called_once_with(sample_asset, dry_run=True)
-    # import_compressed also called in dry_run mode (logs only, returns None)
-    mock_import.assert_called_once()
+    mock_import.assert_called_once_with(compressed, dry_run=True)
 
 
 @patch("archive_videos.reimport._osascript")
@@ -201,32 +177,25 @@ def test_reimport_asset_execute_full_workflow(mock_osascript, sample_asset, tmp_
     result = reimport_asset(sample_asset, compressed, dry_run=False)
 
     assert result == "new-imported-uuid"
-    # delete + import + date + favorite + album(s) = 1 + 1 + 1 + 1 + 1 = 5 calls
+    # delete(1) + import(1) + date(1) + favorite(1) + album(1) = 5
     assert mock_osascript.call_count == 5
 
 
-@patch("archive_videos.reimport.import_compressed")
-@patch("archive_videos.reimport.delete_original")
-def test_reimport_asset_compressed_not_found(mock_delete, mock_import, sample_asset, tmp_path):
+def test_reimport_asset_compressed_not_found(sample_asset, tmp_path):
     nonexistent = tmp_path / "does_not_exist.mp4"
-    # No file written
-
     with pytest.raises(FileNotFoundError):
         reimport_asset(sample_asset, nonexistent, dry_run=False)
 
 
+@patch("archive_videos.reimport.import_compressed", return_value=None)
 @patch("archive_videos.reimport._osascript")
-def test_reimport_asset_early_exit_if_no_new_uuid(mock_osascript, sample_asset, tmp_path):
-    """If import returns None, restore_metadata should NOT be called."""
+def test_reimport_asset_import_returns_none_skips_restore(mock_osascript, mock_import, sample_asset, tmp_path):
+    """When import_compressed returns None (no UUID), restore_metadata is not called."""
     compressed = tmp_path / "compressed.mp4"
     compressed.write_bytes(b"data")
 
-    # First call: delete succeeds; second call: import returns None
-    mock_osascript.side_effect = [None, "new-uuid"]  # delete returns None, import returns uuid
-    # But actually delete doesn't return anything so just proceed
-    # Simpler: make import_compressed return None
-    with patch("archive_videos.reimport.import_compressed", return_value=None):
-        result = reimport_asset(sample_asset, compressed, dry_run=False)
-        # Since new_uuid is None, restore_metadata is not called
-        # The osascript mock will only have 1 call (delete)
-        assert result is None
+    result = reimport_asset(sample_asset, compressed, dry_run=False)
+
+    assert result is None
+    # Only delete_original calls osascript; import returns None so restore is skipped
+    assert mock_osascript.call_count == 1
