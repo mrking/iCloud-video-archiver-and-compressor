@@ -130,6 +130,7 @@ def main(argv: list[str] | None = None) -> int:
 
     assets = discover_videos(
         library_path=args.library_path or cfg.library_path,
+        filter_config=cfg.filter,
     )
 
     # Skip already-done items when resuming

@@ -10,6 +10,14 @@ region = "us-east-1"                   # AWS region for S3 operations
 prefix = "photos/"             # S3 key prefix
 storage_class = "DEEP_ARCHIVE"          # GLACIER or DEEP_ARCHIVE
 
+[filter]
+# Only process videos larger than this (in MB). 0 = no size filter.
+min_file_size_mb = 0
+# Only process videos with bitrate above this (in Mbps). 0 = no bitrate filter.
+min_bitrate_mbps = 0
+# Only process videos with these codecs. Empty list = no codec filter.
+target_codecs = []  # e.g. ["hevc", "h264", "avc1", "hvc1"]
+
 # ── Compression settings ────────────────────────────────────────────────────
 # max_bitrate_mbps: set to a positive value (e.g. 20) to enforce a bitrate ceiling.
 # Set to 0 or a negative value to disable the bitrate ceiling (CRF controls quality only).

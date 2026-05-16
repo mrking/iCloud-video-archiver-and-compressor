@@ -9,6 +9,8 @@ from typing import Protocol
 
 import osxphotos
 
+from .config import FilterConfig
+
 logger = logging.getLogger(__name__)
 
 # Codecs considered "uncompressed" / high-bitrate targets for recompression.
@@ -61,6 +63,17 @@ def _get_bitrate_mbps(photo: osxphotos.PhotoInfo) -> float | None:
     return None
 
 
+def _get_file_size_mb(photo: osxphotos.PhotoInfo) -> float | None:
+    """Return original file size in MB if available."""
+    try:
+        fpath = photo.path_original or photo.path
+        if fpath:
+            return round(Path(fpath).stat().st_size / (1024 * 1024), 2)
+    except (OSError, AttributeError):
+        pass
+    return None
+
+
 def _extract_location(photo: osxphotos.PhotoInfo) -> tuple[float, float] | None:
     """Extract latitude/longitude from photo if available."""
     lat = getattr(photo, "latitude", None)
@@ -75,6 +88,7 @@ def discover_videos(
     min_bitrate_mbps: float = DEFAULT_MIN_BITRATE_MBPS,
     codecs: set[str] | None = None,
     db: PhotosLibrary | None = None,
+    filter_config: FilterConfig | None = None,
 ) -> list[VideoAsset]:
     """Query Photos library and return uncompressed video assets.
 
@@ -83,14 +97,24 @@ def discover_videos(
     library_path:
         Optional path to a Photos library database.
     min_bitrate_mbps:
-        Minimum bitrate threshold (default 15 Mbps).
+        Minimum bitrate threshold (default 15 Mbps). DEPRECATED: use filter_config instead.
     codecs:
-        Set of codec identifiers to target (default UNCOMPRESSED_CODECS).
+        Set of codec identifiers to target (default UNCOMPRESSED_CODECS). DEPRECATED: use filter_config instead.
     db:
         Optional pre-opened PhotosDB for testing.
+    filter_config:
+        Optional FilterConfig to control discovery filtering. Takes precedence over legacy args.
 
     """
-    target_codecs = codecs or UNCOMPRESSED_CODECS
+    if filter_config is not None:
+        target_codecs = set(filter_config.target_codecs) if filter_config.target_codecs else set()
+        min_bitrate = filter_config.min_bitrate_mbps
+        min_file_size = filter_config.min_file_size_mb
+    else:
+        target_codecs = codecs or UNCOMPRESSED_CODECS
+        min_bitrate = min_bitrate_mbps
+        min_file_size = 0.0
+
     photosdb = db or osxphotos.PhotosDB(dbfile=str(library_path) if library_path else None)
     videos = photosdb.photos(images=False, movies=True)
 
@@ -100,24 +124,53 @@ def discover_videos(
         if duration <= 0:
             continue
 
-        codec = getattr(photo, "codec", None) or ""
+        codec = getattr(photo, "codec", None)
+        # Normalize empty string to None so we don't filter on it
+        if codec == "":
+            codec = None
         bitrate = _get_bitrate_mbps(photo)
+        file_size_mb = _get_file_size_mb(photo)
 
-        # Filter by bitrate if we can estimate it
-        if bitrate is not None and bitrate < min_bitrate_mbps:
-            continue
+        # Filter by file size if configured
+        if min_file_size > 0:
+            if file_size_mb is not None and file_size_mb < min_file_size:
+                logger.info(
+                    "Skipping %s: file size %.2f MB < min %.2f MB",
+                    photo.filename, file_size_mb, min_file_size
+                )
+                continue
 
-        # Filter by target codecs
-        if target_codecs and codec not in target_codecs:
-            logger.debug("Skipping %s: codec %s not in target set", photo.filename, codec)
-            continue
+        # Filter by bitrate if configured
+        if min_bitrate > 0:
+            if bitrate is not None and bitrate < min_bitrate:
+                logger.info(
+                    "Skipping %s: bitrate %.2f Mbps < min %.2f Mbps",
+                    photo.filename, bitrate, min_bitrate
+                )
+                continue
+
+        # Filter by target codecs if configured
+        if target_codecs:
+            if codec is None:
+                # Unknown codec: log and skip only when target_codecs is explicitly set
+                logger.info(
+                    "Skipping %s: unknown codec (not in target set %s)",
+                    photo.filename, target_codecs
+                )
+                continue
+            if codec not in target_codecs:
+                logger.info(
+                    "Skipping %s: codec %s not in target set %s",
+                    photo.filename, codec, target_codecs
+                )
+                continue
 
         asset = VideoAsset(
             uuid=photo.uuid,
             filename=photo.filename or "",
             path=Path(photo.path) if photo.path else None,
             duration=duration,
-            codec=codec or None,
+            codec=codec,
             bitrate_mbps=bitrate,
             width=getattr(photo, "original_width", 0) or 0,
             height=getattr(photo, "original_height", 0) or 0,

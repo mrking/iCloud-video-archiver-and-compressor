@@ -42,6 +42,21 @@ class CompressionConfig(BaseModel):
         return v
 
 
+class FilterConfig(BaseModel):
+    min_file_size_mb: float = Field(
+        default=0.0,
+        description="Only process videos larger than this (in MB). 0 = no size filter.",
+    )
+    min_bitrate_mbps: float = Field(
+        default=0.0,
+        description="Only process videos with bitrate above this (in Mbps). 0 = no bitrate filter.",
+    )
+    target_codecs: list[str] = Field(
+        default=[],
+        description="Only process videos with these codecs. Empty list = no codec filter.",
+    )
+
+
 class AppConfig(BaseModel):
     library_path: str | None = Field(
         default=None,
@@ -49,6 +64,7 @@ class AppConfig(BaseModel):
     )
     s3: S3Config
     compression: CompressionConfig
+    filter: FilterConfig = Field(default_factory=FilterConfig, description="Discovery filter settings")
     temp_dir: str = Field(default="/tmp/icloud-archiver", description="Temp working directory")
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(default="INFO")
     dry_run: bool = Field(default=True, description="Dry-run by default")
