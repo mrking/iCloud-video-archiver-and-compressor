@@ -115,6 +115,9 @@ def main(argv: list[str] | None = None) -> int:
     log_level = args.log_level or cfg.log_level
     setup_logging(level=log_level)
 
+    logger.info("Loaded config: %s", config_path)
+    logger.info("temp_dir: %s", cfg.temp_dir)
+
     dry_run = not args.execute
     if dry_run:
         logger.warning("DRY-RUN mode — no changes will be made. Use --execute to run for real.")
