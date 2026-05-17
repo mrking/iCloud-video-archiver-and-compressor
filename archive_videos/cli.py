@@ -34,6 +34,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--library-path", default=None, help="Path to Photos library")
     parser.add_argument("--state-db", default="./archive-state.db", help="Path to SQLite state DB")
     parser.add_argument("--limit", type=int, default=0, help="Limit number of videos to process")
+    parser.add_argument("--keep-temps", action="store_true", help="Preserve temp working directory after run for inspection")
     parser.add_argument("--log-level", default=None, help="Override log level from config")
     return parser
 
@@ -151,7 +152,7 @@ def main(argv: list[str] | None = None) -> int:
 
     logger.info("Processing %d video(s)", len(assets))
 
-    with temp_work_dir(cfg.temp_dir) as work_dir:
+    with temp_work_dir(cfg.temp_dir, keep=args.keep_temps) as work_dir:
         for asset in assets:
             try:
                 process_asset(asset, cfg, db, dry_run, work_dir)
