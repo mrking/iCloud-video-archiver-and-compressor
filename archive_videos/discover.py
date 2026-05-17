@@ -49,7 +49,7 @@ class PhotosLibrary(Protocol):
 
 def _get_duration_ffprobe(photo: osxphotos.PhotoInfo) -> float | None:
     """Get duration from actual video file via ffprobe."""
-    path = photo.path_original or photo.path
+    path = photo.path
     if not path:
         return None
     try:
@@ -79,7 +79,7 @@ def _get_bitrate_mbps(photo: osxphotos.PhotoInfo) -> float | None:
 
     # Fallback to file path if DB size unavailable
     try:
-        fpath = photo.path_original or photo.path
+        fpath = photo.path
         if fpath:
             size_bytes = Path(fpath).stat().st_size
             return round((size_bytes * 8) / (duration * 1_000_000), 2)
@@ -92,7 +92,7 @@ def _get_bitrate_mbps(photo: osxphotos.PhotoInfo) -> float | None:
 def _get_file_size_mb(photo: osxphotos.PhotoInfo) -> float | None:
     """Return original file size in MB if available."""
     try:
-        fpath = photo.path_original or photo.path
+        fpath = photo.path
         if fpath:
             return round(Path(fpath).stat().st_size / (1024 * 1024), 2)
     except (OSError, AttributeError):
