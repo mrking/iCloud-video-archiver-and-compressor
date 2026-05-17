@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import logging
 import tempfile
 from pathlib import Path
 from typing import Generator
-import contextlib
+
+logger = logging.getLogger(__name__)
 
 
 def setup_logging(level: str = "INFO", log_file: str | Path | None = None) -> None:
