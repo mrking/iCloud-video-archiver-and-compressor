@@ -115,6 +115,7 @@ def discover_videos(
     codecs: set[str] | None = None,
     db: PhotosLibrary | None = None,
     filter_config: FilterConfig | None = None,
+    limit: int = 0,
 ) -> list[VideoAsset]:
     """Query Photos library and return uncompressed video assets.
 
@@ -130,6 +131,8 @@ def discover_videos(
         Optional pre-opened PhotosDB for testing.
     filter_config:
         Optional FilterConfig to control discovery filtering. Takes precedence over legacy args.
+    limit:
+        If > 0, stop discovery once this many candidates are found.
 
     """
     if filter_config is not None:
@@ -224,6 +227,10 @@ def discover_videos(
             asset.bitrate_mbps or 0.0,
             asset.duration,
         )
+
+        if limit > 0 and len(results) >= limit:
+            logger.info("Reached limit of %d candidate(s), stopping discovery early", limit)
+            break
 
     logger.info("Discovered %d candidate video(s)", len(results))
     return results

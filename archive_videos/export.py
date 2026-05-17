@@ -40,7 +40,7 @@ def export_original(
         raise FileNotFoundError(f"Photo with uuid {asset.uuid} not found in library")
 
     # osxphotos PhotoInfo.export handles the actual copy
-    exported = photo.export(str(dest_dir), original=True, overwrite=True)
+    exported = photo.export(str(dest_dir), overwrite=True)
     logger.info("Exported %s → %s", asset.uuid, exported)
     return Path(exported) if not isinstance(exported, list) else Path(exported[0])
 
