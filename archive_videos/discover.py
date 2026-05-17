@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -44,6 +45,25 @@ class PhotosLibrary(Protocol):
     """Protocol for mocking osxphotos.PhotosDB in tests."""
 
     def photos(self, **kwargs: object) -> list[object]: ...  # type: ignore[empty-body]
+
+
+def _get_duration_ffprobe(photo: osxphotos.PhotoInfo) -> float | None:
+    """Get duration from actual video file via ffprobe."""
+    path = photo.path_original or photo.path
+    if not path:
+        return None
+    try:
+        result = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "v:0",
+             "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+            capture_output=True, text=True, timeout=30
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return float(result.stdout.strip())
+    except Exception:
+        pass
+    return None
 
 
 def _get_bitrate_mbps(photo: osxphotos.PhotoInfo) -> float | None:
@@ -126,8 +146,10 @@ def discover_videos(
 
     results: list[VideoAsset] = []
     for photo in videos:
-        duration = getattr(photo, "duration", 0.0) or 0.0
-        if duration <= 0:
+        duration_db = getattr(photo, "duration", 0.0) or 0.0
+        duration = duration_db if duration_db > 0 else _get_duration_ffprobe(photo)
+        if not duration or duration <= 0:
+            logger.info("Skipping %s: cannot determine duration", photo.filename)
             continue
 
         codec = getattr(photo, "codec", None)
@@ -136,6 +158,11 @@ def discover_videos(
             codec = None
         bitrate = _get_bitrate_mbps(photo)
         file_size_mb = _get_file_size_mb(photo)
+
+        # Fallback bitrate calculation using ffprobe duration if DB bitrate missing
+        if bitrate is None and file_size_mb and duration:
+            bitrate = round((file_size_mb * 8) / (duration / 60), 2)
+            logger.debug("Bitrate for %s calculated via ffprobe fallback: %.2f Mbps", photo.filename, bitrate)
 
         # Filter by file size if configured
         if min_file_size > 0:

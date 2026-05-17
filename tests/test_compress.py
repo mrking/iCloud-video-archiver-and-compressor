@@ -105,11 +105,18 @@ class TestCompressVideo:
         inp.write_bytes(b"fake video content")
         out = tmp_path / "video001_compressed.mp4"
 
+        # ffprobe returns high bitrate → proceeds to compress
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="50000000"
+        )
+
         result = compress_video(inp, out, cfg, dry_run=True)
 
         assert result == out
         assert out.read_text() == "DRY_RUN_PLACEHOLDER"
-        mock_run.assert_not_called()
+        # ffprobe called once, ffmpeg not called in dry-run
+        assert mock_run.call_count == 1
+        assert "ffprobe" in mock_run.call_args_list[0][0][0]
 
     @patch("subprocess.run")
     def test_compress_failure_raises_runtime_error(self, mock_run, tmp_path):
@@ -124,3 +131,24 @@ class TestCompressVideo:
 
         with pytest.raises(RuntimeError, match="ffmpeg failed with code 1"):
             compress_video(inp, out, cfg, dry_run=False)
+
+    @patch("subprocess.run")
+    def test_skip_already_compressed(self, mock_run, tmp_path):
+        """Videos with bitrate below threshold should be skipped."""
+        cfg = CompressionConfig()
+        inp = tmp_path / "video001_original.mp4"
+        inp.write_bytes(b"fake video content")
+        out = tmp_path / "video001_compressed.mp4"
+
+        # ffprobe returns low bitrate (5 Mbps) → skip compression
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="5000000"
+        )
+
+        result = compress_video(inp, out, cfg, dry_run=True)
+
+        assert result == out
+        assert out.read_text() == "SKIPPED_ALREADY_COMPRESSED"
+        # Only ffprobe called, no ffmpeg
+        assert mock_run.call_count == 1
+        assert "ffprobe" in mock_run.call_args_list[0][0][0]

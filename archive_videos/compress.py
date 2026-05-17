@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import subprocess
 from pathlib import Path
@@ -19,6 +20,27 @@ PRESET_MAP: dict[str, str] = {
     "hevc": "slow",  # x265 default behaviour
     "h264": "medium",
 }
+
+# Bitrate below this is considered already compressed (Mbps)
+ALREADY_COMPRESSED_THRESHOLD_MBPS = 10.0
+
+
+def _get_file_bitrate_mbps(path: Path) -> float | None:
+    """Return video bitrate in Mbps using ffprobe."""
+    cmd = [
+        "ffprobe", "-v", "error",
+        "-select_streams", "v:0",
+        "-show_entries", "stream=bit_rate",
+        "-of", "default=noprint_wrappers=1:nokey=1",
+        str(path),
+    ]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        if result.returncode == 0 and result.stdout.strip():
+            return round(int(result.stdout.strip()) / 1_000_000, 2)
+    except Exception:
+        pass
+    return None
 
 
 def _build_ffmpeg_cmd(
@@ -74,6 +96,8 @@ def compress_video(
 ) -> Path:
     """Compress a video with ffmpeg, preserving creation_time and GPS metadata.
 
+    Skips compression if the video is already below bitrate threshold.
+
     Parameters
     ----------
     input_path:
@@ -87,11 +111,25 @@ def compress_video(
 
     Returns
     -------
-    Path to the compressed video file.
+    Path to the compressed video file (or original if skipped).
 
     """
+    input_path = Path(input_path)
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Skip already-compressed videos
+    existing_bitrate = _get_file_bitrate_mbps(input_path)
+    if existing_bitrate and existing_bitrate < ALREADY_COMPRESSED_THRESHOLD_MBPS:
+        logger.info("Skipping %s: already compressed (%.1f Mbps < %.1f Mbps threshold)",
+                    input_path.name, existing_bitrate, ALREADY_COMPRESSED_THRESHOLD_MBPS)
+        # Copy original to output path so pipeline continues
+        if not dry_run:
+            import shutil
+            shutil.copy2(input_path, output_path)
+        else:
+            output_path.write_text("SKIPPED_ALREADY_COMPRESSED")
+        return output_path
 
     lib = CODEC_MAP.get(cfg.codec, "libx265")
 
