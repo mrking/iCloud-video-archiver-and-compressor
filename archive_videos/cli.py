@@ -14,7 +14,7 @@ from .discover import VideoAsset, discover_videos
 from .export import export_original, write_sidecar
 from .glacier import upload_to_glacier
 from .reimport import reimport_asset
-from .state import State, StateDB, new_record_from_asset
+from .state import State, StateDB, VideoRecord, new_record_from_asset
 from .utils import setup_logging, temp_work_dir
 
 logger = logging.getLogger(__name__)
@@ -39,9 +39,21 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _update_state(db: StateDB, uuid: str, filename: str, state: State, **kwargs: str | None) -> None:
-    record = new_record_from_asset(type("A", (), {"uuid": uuid, "filename": filename})(), state=state)
-    for k, v in kwargs.items():
-        setattr(record, k, v)
+    # Preserve existing field values when not explicitly provided
+    existing = db.get(uuid)
+    base = {
+        "uuid": uuid,
+        "filename": filename,
+        "state": state,
+        "original_path": existing.original_path if existing else None,
+        "compressed_path": existing.compressed_path if existing else None,
+        "s3_key": existing.s3_key if existing else None,
+        "s3_etag": existing.s3_etag if existing else None,
+        "sidecar_path": existing.sidecar_path if existing else None,
+        "error_log": existing.error_log if existing else None,
+    }
+    base.update(kwargs)
+    record = VideoRecord(**base)
     db.insert_or_update(record)
 
 
