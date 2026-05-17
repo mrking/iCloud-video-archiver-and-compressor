@@ -152,14 +152,17 @@ def test_execute_returns_etag_stripped_of_quotes(mock_calc_sha, mock_boto3, real
 @patch("archive_videos.glacier.boto3")
 @patch("archive_videos.glacier.calculate_sha256")
 def test_checksum_mismatch_raises_runtime_error(mock_calc_sha, mock_boto3, real_file, s3_cfg):
-    mock_calc_sha.return_value = "local_checksum" * 8
+    # Use valid 64-char hex strings for strict comparison path
+    local_sha = "a" * 64
+    remote_sha = "b" * 64
+    mock_calc_sha.return_value = local_sha
     mock_client = MagicMock()
     mock_boto3.client.return_value = mock_client
     mock_client.upload_file.return_value = None
     # Remote has a DIFFERENT checksum
     mock_client.head_object.return_value = {
         "ETag": '"abc123"',
-        "ChecksumSHA256": "different_checksum" * 8,
+        "ChecksumSHA256": remote_sha,
     }
 
     with pytest.raises(RuntimeError, match="Checksum mismatch"):
