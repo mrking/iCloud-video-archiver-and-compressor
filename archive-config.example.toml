@@ -1,28 +1,45 @@
-# Example configuration for archive-videos
-# Copy to archive-config.toml and customize.
+# Example configuration for archive-videos.
+# Copy this file to ~/.config/icloud-archiver/archive-config.toml
+# and fill in your values. Do NOT embed credentials in the file —
+# use environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+# or AWS IAM roles instead.
 
 [s3]
-bucket = "my-icloud-archive-bucket"
-region = "us-east-1"
-prefix = "icloud-archiver/"
-storage_class = "DEEP_ARCHIVE"  # or "GLACIER"
+bucket = "my-glacier-archive"          # S3 bucket already created in your account
+region = "us-east-1"                   # AWS region for S3 operations
+prefix = "photos/"             # S3 key prefix
+storage_class = "DEEP_ARCHIVE"          # GLACIER or DEEP_ARCHIVE
 
+[filter]
+# Bitrate filter uses original_filesize from Photos DB, works even for iCloud-optimized storage
+# Only process videos larger than this (in MB). 0 = no size filter.
+min_file_size_mb = 0
+# Only process videos with bitrate above this (in Mbps). 0 = no bitrate filter.
+min_bitrate_mbps = 0
+# Only process videos with these codecs. Empty list = no codec filter.
+target_codecs = []  # e.g. ["hevc", "h264", "avc1", "hvc1"]
+
+# ── Compression settings ────────────────────────────────────────────────────
+# max_bitrate_mbps: set to a positive value (e.g. 20) to enforce a bitrate ceiling.
+# Set to 0 or a negative value to disable the bitrate ceiling (CRF controls quality only).
+# audio_bitrate: "copy" to preserve original audio, or "128k" / "256k" for re-encode
 [compression]
 codec = "hevc"          # "hevc" (H.265) or "h264" (H.264)
-crf = 23                # 0-51, lower = higher quality
-preset = "medium"       # ultrafast … veryslow
-max_height = 1080       # 480 … 4320
-max_bitrate_mbps = 8.0
-audio_bitrate = "128k"
+crf = 18                # 18=visually lossless (large), 28=smaller file (default: 23)
+preset = "slow"         # slower = better compression; "slow" or "slower" for archivists
+max_height = 1080       # 0 disables scaling; positive value scales to max height
+max_bitrate_mbps = 0    # 0 disables bitrate ceiling (CRF controls quality only)
+audio_bitrate = "copy"  # "copy" to preserve original audio, or "128k" / "256k"
 
-# Optional: override Photos library path (None = system default)
-library_path = null
+# ── macOS Photos library ────────────────────────────────────────────────────
+# library_path: set to your Photos library path, or empty string for system default
+library_path = ""
 
-# Temp directory for exports and compressed files
+# temp_dir: temporary working directory for exports and compressed files
 temp_dir = "/tmp/icloud-archiver"
 
-# Logging level
-log_level = "INFO"
-
-# Default dry-run (set to false here only if you want archive-config.toml to override CLI)
+# dry_run: if true, archive-config.toml controls dry-run mode (CLI --execute overrides)
 dry_run = true
+
+# log_level: DEBUG for verbose ffmpeg output
+log_level = "INFO"

@@ -25,8 +25,36 @@ class CompressionConfig(BaseModel):
         "ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"
     ] = Field(default="medium", description="Encoding speed preset")
     max_height: int = Field(default=1080, ge=480, le=4320, description="Max output height")
-    max_bitrate_mbps: float = Field(default=8.0, gt=0, le=100, description="Max bitrate in Mbps")
-    audio_bitrate: str = Field(default="128k", description="Audio bitrate")
+    max_bitrate_mbps: float = Field(
+        default=0.0, le=100.0,
+        description="Max bitrate in Mbps; 0 or negative skips this cap (CRF controls quality only)",
+    )
+    audio_bitrate: str = Field(
+        default="128k",
+        description="Audio bitrate; 'copy' to preserve original audio",
+    )
+
+    @field_validator("crf")
+    @classmethod
+    def crf_range(cls, v: int) -> int:
+        if v < 18:
+            raise ValueError("CRF below 18 produces extremely large files; use 18-28 for good quality.")
+        return v
+
+
+class FilterConfig(BaseModel):
+    min_file_size_mb: float = Field(
+        default=0.0,
+        description="Only process videos larger than this (in MB). 0 = no size filter.",
+    )
+    min_bitrate_mbps: float = Field(
+        default=0.0,
+        description="Only process videos with bitrate above this (in Mbps). 0 = no bitrate filter.",
+    )
+    target_codecs: list[str] = Field(
+        default=[],
+        description="Only process videos with these codecs. Empty list = no codec filter.",
+    )
 
 
 class AppConfig(BaseModel):
@@ -36,9 +64,17 @@ class AppConfig(BaseModel):
     )
     s3: S3Config
     compression: CompressionConfig
+    filter: FilterConfig = Field(default_factory=FilterConfig, description="Discovery filter settings")
     temp_dir: str = Field(default="/tmp/icloud-archiver", description="Temp working directory")
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(default="INFO")
     dry_run: bool = Field(default=True, description="Dry-run by default")
+
+    @field_validator("library_path")
+    @classmethod
+    def _empty_library_path_to_none(cls, v: str | None) -> str | None:
+        if v == "":
+            return None
+        return v
 
     @field_validator("temp_dir")
     @classmethod

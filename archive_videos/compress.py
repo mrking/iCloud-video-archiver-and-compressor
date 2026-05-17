@@ -21,6 +21,51 @@ PRESET_MAP: dict[str, str] = {
 }
 
 
+def _build_ffmpeg_cmd(
+    input_path: Path,
+    output_path: Path,
+    cfg: CompressionConfig,
+) -> list[str]:
+    """Build an ffmpeg command for video compression (used by tests)."""
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    lib = CODEC_MAP.get(cfg.codec, "libx265")
+
+    vf_list: list[str] = []
+    if cfg.max_height > 0:
+        vf_list.append(f"scale=-2:{cfg.max_height}")
+
+    cmd: list[str] = [
+        "ffmpeg", "-y", "-i", str(input_path),
+        "-c:v", lib, "-crf", str(cfg.crf), "-preset", cfg.preset,
+    ]
+
+    # Audio: 'copy' means preserve original audio; else re-encode with explicit bitrate
+    if cfg.audio_bitrate == "copy":
+        cmd += ["-c:a", "copy"]
+    else:
+        cmd += ["-c:a", "aac", "-b:a", cfg.audio_bitrate]
+
+    # Optional bitrate ceiling — only add when max_bitrate_mbps > 0
+    if cfg.max_bitrate_mbps > 0:
+        cmd += [
+            "-maxrate", f"{cfg.max_bitrate_mbps}M",
+            "-bufsize", f"{cfg.max_bitrate_mbps * 2}M",
+        ]
+
+    cmd += ["-map_metadata", "0", "-movflags", "+faststart"]
+
+    if vf_list:
+        cmd += ["-vf", ",".join(vf_list)]
+
+    if cfg.codec == "hevc":
+        cmd += ["-tag:v", "hvc1"]
+
+    cmd += [str(output_path)]
+    return cmd
+
+
 def compress_video(
     input_path: Path,
     output_path: Path,
@@ -50,7 +95,6 @@ def compress_video(
 
     lib = CODEC_MAP.get(cfg.codec, "libx265")
 
-    # Build filter for max_height
     vf_list: list[str] = []
     if cfg.max_height > 0:
         vf_list.append(f"scale=-2:{cfg.max_height}")
@@ -62,10 +106,21 @@ def compress_video(
         "-c:v", lib,
         "-crf", str(cfg.crf),
         "-preset", cfg.preset,
-        "-c:a", "aac",
-        "-b:a", cfg.audio_bitrate,
-        "-maxrate", f"{cfg.max_bitrate_mbps}M",
-        "-bufsize", f"{cfg.max_bitrate_mbps * 2}M",
+    ]
+
+    if cfg.audio_bitrate == "copy":
+        cmd += ["-c:a", "copy"]
+    else:
+        cmd += ["-c:a", "aac", "-b:a", cfg.audio_bitrate]
+
+    # Optional bitrate ceiling — only add when max_bitrate_mbps > 0
+    if cfg.max_bitrate_mbps > 0:
+        cmd += [
+            "-maxrate", f"{cfg.max_bitrate_mbps}M",
+            "-bufsize", f"{cfg.max_bitrate_mbps * 2}M",
+        ]
+
+    cmd += [
         "-map_metadata", "0",       # preserve metadata
         "-movflags", "+faststart",  # web-optimized
     ]

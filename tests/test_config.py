@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from archive_videos.config import AppConfig, CompressionConfig, S3Config, load_config, resolve_config_path
+from archive_videos.config import AppConfig, CompressionConfig, FilterConfig, S3Config, load_config, resolve_config_path
 
 
 SAMPLE_TOML = """
@@ -74,3 +74,32 @@ def test_s3_defaults() -> None:
     assert s.region == "us-east-1"
     assert s.prefix == "icloud-archiver/"
     assert s.storage_class == "DEEP_ARCHIVE"
+
+
+def test_filter_defaults() -> None:
+    f = FilterConfig()
+    assert f.min_file_size_mb == 0.0
+    assert f.min_bitrate_mbps == 0.0
+    assert f.target_codecs == []
+
+
+def test_load_config_with_filter(tmp_path: Path) -> None:
+    toml = """
+[filter]
+min_file_size_mb = 50
+min_bitrate_mbps = 10
+target_codecs = ["hevc", "h264"]
+
+[s3]
+bucket = "test-bucket"
+
+[compression]
+crf = 20
+"""
+    cfg_path = tmp_path / "test-config.toml"
+    cfg_path.write_text(toml)
+    cfg = load_config(cfg_path)
+
+    assert cfg.filter.min_file_size_mb == 50.0
+    assert cfg.filter.min_bitrate_mbps == 10.0
+    assert cfg.filter.target_codecs == ["hevc", "h264"]
