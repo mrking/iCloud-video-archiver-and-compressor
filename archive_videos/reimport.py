@@ -126,12 +126,21 @@ def reimport_asset(
     compressed_path: Path,
     dry_run: bool = True,
 ) -> str | None:
-    """High-level workflow: delete original, import compressed, restore metadata.
+    """High-level workflow: import compressed first, then delete original, restore metadata.
+
+    Import happens before delete so that if delete fails (e.g. iCloud sync in progress),
+    the compressed version is already safely in the library.
 
     Returns the new UUID if obtainable.
     """
-    delete_original(asset, dry_run=dry_run)
     new_uuid = import_compressed(compressed_path, dry_run=dry_run)
     if new_uuid:
         restore_metadata(new_uuid, asset, dry_run=dry_run)
+
+    # Delete original after import succeeded
+    try:
+        delete_original(asset, dry_run=dry_run)
+    except RuntimeError as exc:
+        logger.warning("Failed to delete original %s: %s. Manual cleanup may be needed.", asset.uuid, exc)
+
     return new_uuid
