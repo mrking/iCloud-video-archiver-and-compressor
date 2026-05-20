@@ -164,7 +164,8 @@ def discover_videos(
 
         # Fallback bitrate calculation using ffprobe duration if DB bitrate missing
         if bitrate is None and file_size_mb and duration:
-            bitrate = round((file_size_mb * 8) / (duration / 60), 2)
+            size_bytes = file_size_mb * 1024 * 1024
+            bitrate = round((size_bytes * 8) / (duration * 1_000_000), 2)
             logger.debug("Bitrate for %s calculated via ffprobe fallback: %.2f Mbps", photo.filename, bitrate)
 
         # Filter by file size if configured
