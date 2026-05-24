@@ -4,6 +4,19 @@
 # use environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
 # or AWS IAM roles instead.
 
+# ── macOS Photos library ────────────────────────────────────────────────────
+# library_path: set to your Photos library path, or empty string for system default
+library_path = ""
+
+# temp_dir: temporary working directory for exports and compressed files
+temp_dir = "/tmp/icloud-archiver"
+
+# dry_run: if true, archive-config.toml controls dry-run mode (CLI --execute overrides)
+dry_run = true
+
+# log_level: DEBUG for verbose ffmpeg output
+log_level = "INFO"
+
 [s3]
 bucket = "my-glacier-archive"          # S3 bucket already created in your account
 region = "us-east-1"                   # AWS region for S3 operations
@@ -30,16 +43,3 @@ preset = "slow"         # slower = better compression; "slow" or "slower" for ar
 max_height = 1080       # 0 disables scaling; positive value scales to max height
 max_bitrate_mbps = 0    # 0 disables bitrate ceiling (CRF controls quality only)
 audio_bitrate = "copy"  # "copy" to preserve original audio, or "128k" / "256k"
-
-# ── macOS Photos library ────────────────────────────────────────────────────
-# library_path: set to your Photos library path, or empty string for system default
-library_path = ""
-
-# temp_dir: temporary working directory for exports and compressed files
-temp_dir = "/tmp/icloud-archiver"
-
-# dry_run: if true, archive-config.toml controls dry-run mode (CLI --execute overrides)
-dry_run = true
-
-# log_level: DEBUG for verbose ffmpeg output
-log_level = "INFO"

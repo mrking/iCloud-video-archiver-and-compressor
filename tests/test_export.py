@@ -164,7 +164,7 @@ def test_export_original_execute_calls_export_on_photo(sample_asset, tmp_path):
     with patch("archive_videos.export.osxphotos.PhotosDB", return_value=mock_db):
         export_original(sample_asset, dest_dir, dry_run=False, db=mock_db)
 
-    mock_photo.export.assert_called_once_with(str(dest_dir), original=True, overwrite=True)
+    mock_photo.export.assert_called_once_with(str(dest_dir), overwrite=True)
 
 
 def test_export_original_execute_returns_path(sample_asset, tmp_path):
