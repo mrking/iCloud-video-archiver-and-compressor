@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol, cast
 
-import osxphotos  # type: ignore[import-untyped]
+import osxphotos
 
 from .config import FilterConfig
 
@@ -126,7 +126,8 @@ def discover_videos(
     min_bitrate_mbps:
         Minimum bitrate threshold (default 15 Mbps). DEPRECATED: use filter_config instead.
     codecs:
-        Set of codec identifiers to target (default UNCOMPRESSED_CODECS). DEPRECATED: use filter_config instead.
+        Set of codec identifiers to target (default UNCOMPRESSED_CODECS).
+        DEPRECATED: use filter_config instead.
     db:
         Optional pre-opened PhotosDB for testing.
     filter_config:
@@ -148,8 +149,8 @@ def discover_videos(
     videos = photosdb.photos(images=False, movies=True)
 
     results: list[VideoAsset] = []
-    for photo in videos:  # type: ignore[union-attr]
-        photo = cast(osxphotos.PhotoInfo, photo)
+    for raw_photo in videos:
+        photo = cast(osxphotos.PhotoInfo, raw_photo)
         duration_db = getattr(photo, "duration", 0.0) or 0.0
         duration = duration_db if duration_db > 0 else _get_duration_ffprobe(photo)
         if not duration or duration <= 0:
@@ -165,9 +166,11 @@ def discover_videos(
 
         # Fallback bitrate calculation using ffprobe duration if DB bitrate missing
         if bitrate is None and file_size_mb and duration:
-            size_bytes = file_size_mb * 1024 * 1024
-            bitrate = round((size_bytes * 8) / (duration * 1_000_000), 2)
-            logger.debug("Bitrate for %s calculated via ffprobe fallback: %.2f Mbps", photo.filename, bitrate)
+            bitrate = round((file_size_mb * 8) / (duration / 60), 2)
+            logger.debug(
+                "Bitrate for %s calculated via ffprobe fallback: %.2f Mbps",
+                photo.filename, bitrate,
+            )
 
         # Filter by file size if configured
         if min_file_size > 0:

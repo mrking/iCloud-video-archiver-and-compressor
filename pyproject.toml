@@ -14,8 +14,8 @@ authors = [
 ]
 keywords = ["photos", "icloud", "ffmpeg", "s3", "glacier", "compression"]
 dependencies = [
-  "osxphotos>=0.60.0",
-  "boto3>=1.28.0",
+  "osxphotos>=0.68.5",
+  "boto3>=1.37.0",
   "pydantic>=2.0.0",
   "toml>=0.10.2",
   "ffmpeg-python>=0.2.0"
@@ -23,9 +23,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "pytest>=7.0.0",
+  "pytest>=8.0.0",
   "pytest-cov>=4.0.0",
-  "ruff>=0.1.0",
+  "ruff>=0.11.0",
   "mypy>=1.0.0",
 ]
 
@@ -36,15 +36,19 @@ archive-videos = "archive_videos.cli:main"
 where = ["."]
 include = ["archive_videos*"]
 
-[tool.ruff.lint]
-select = ["E", "F", "W", "I"]
+[tool.ruff]
 line-length = 100
+select = ["E", "F", "W", "I"]
 
 [tool.mypy]
 python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["osxphotos.*", "boto3.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = "tests"

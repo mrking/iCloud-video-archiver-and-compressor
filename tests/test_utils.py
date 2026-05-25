@@ -12,35 +12,33 @@ import pytest
 
 from archive_videos.utils import (
     clean_temp_dir,
-    setup_logging,
     sha256_file,
     temp_work_dir,
 )
 
-
 # ── sha256_file tests ───────────────────────────────────────────────────────
 
-def test_sha256_file_returns_hex_string(tmp_path):
+def test_sha256_file_returns_hex_string(tmp_path: Path) -> None:
     f = tmp_path / "data.bin"
     f.write_bytes(b"hello world")
     assert len(sha256_file(f)) == 64
     assert all(c in "0123456789abcdef" for c in sha256_file(f))
 
 
-def test_sha256_file_deterministic(tmp_path):
+def test_sha256_file_deterministic(tmp_path: Path) -> None:
     f = tmp_path / "data.bin"
     f.write_bytes(b"hello world")
     assert sha256_file(f) == sha256_file(f)
 
 
-def test_sha256_file_empty_file(tmp_path):
+def test_sha256_file_empty_file(tmp_path: Path) -> None:
     import hashlib
     f = tmp_path / "empty.bin"
     f.write_bytes(b"")
     assert sha256_file(f) == hashlib.sha256(b"").hexdigest()
 
 
-def test_sha256_file_large_file(tmp_path):
+def test_sha256_file_large_file(tmp_path: Path) -> None:
     """File larger than the 8 MiB chunk size still hashes correctly."""
     chunk = b"x" * (8 * 1024 * 1024)
     f = tmp_path / "large.bin"
@@ -49,12 +47,12 @@ def test_sha256_file_large_file(tmp_path):
     assert sha256_file(f) == hashlib.sha256(chunk * 3).hexdigest()
 
 
-def test_sha256_file_nonexistent_raises():
+def test_sha256_file_nonexistent_raises() -> None:
     with pytest.raises(FileNotFoundError):
         sha256_file(Path("/nonexistent/path/file.bin"))
 
 
-def test_sha256_file_different_content_different_hash(tmp_path):
+def test_sha256_file_different_content_different_hash(tmp_path: Path) -> None:
     f1 = tmp_path / "a.bin"
     f1.write_bytes(b"content A")
     f2 = tmp_path / "b.bin"
@@ -74,8 +72,8 @@ def _run_in_subprocess(code: str) -> subprocess.CompletedProcess:
     )
 
 
-def test_setup_logging_sets_root_logger_level_debug(tmp_path):
-    code = f"""
+def test_setup_logging_sets_root_logger_level_debug(tmp_path: Path) -> None:
+    code = """
 import logging
 from archive_videos.utils import setup_logging
 setup_logging(level="DEBUG")
@@ -87,7 +85,7 @@ print(logger.level)
     assert level <= logging.DEBUG, f"Expected level <= 10 (DEBUG), got {level}"
 
 
-def test_setup_logging_creates_and_writes_log_file(tmp_path):
+def test_setup_logging_creates_and_writes_log_file(tmp_path: Path) -> None:
     log_path = tmp_path / "test.log"
     code = f"""
 import logging
@@ -102,7 +100,7 @@ logger.info("hello from test")
     assert "hello from test" in log_path.read_text(encoding="utf-8")
 
 
-def test_setup_logging_log_file_accepts_pathlib(tmp_path):
+def test_setup_logging_log_file_accepts_pathlib(tmp_path: Path) -> None:
     log_path = tmp_path / "test2.log"
     code = f"""
 import logging
@@ -118,16 +116,16 @@ logger.info("another message")
     assert "another message" in log_path.read_text(encoding="utf-8")
 
 
-def test_setup_logging_invalid_level_does_not_raise(tmp_path):
+def test_setup_logging_invalid_level_does_not_raise(tmp_path: Path) -> None:
     """Unknown level string should not raise — falls back gracefully."""
-    code = f"""
+    code = """
 import logging
 from archive_videos.utils import setup_logging
 try:
     setup_logging(level="NOT_A_REAL_LEVEL")
     print("ok")
 except Exception as e:
-    print(f"ERROR: {{e}}")
+    print(f"ERROR: {e}")
 """
     r = _run_in_subprocess(code)
     assert "ok" in r.stdout, r.stderr
@@ -135,21 +133,21 @@ except Exception as e:
 
 # ── temp_work_dir tests ───────────────────────────────────────────────────────
 
-def test_temp_work_dir_yields_path(tmp_path):
+def test_temp_work_dir_yields_path(tmp_path: Path) -> None:
     base = tmp_path / "work"
     with temp_work_dir(base) as td:
         assert isinstance(td, Path)
         assert td.exists()
 
 
-def test_temp_work_dir_created_under_base(tmp_path):
+def test_temp_work_dir_created_under_base(tmp_path: Path) -> None:
     base = tmp_path / "work_base"
     with temp_work_dir(base) as td:
         # The temp dir is a direct child of base
         assert td.parent == base
 
 
-def test_temp_work_dir_cleaned_up_after(tmp_path):
+def test_temp_work_dir_cleaned_up_after(tmp_path: Path) -> None:
     base = tmp_path / "cleanup_test"
     with temp_work_dir(base):
         pass
@@ -157,7 +155,7 @@ def test_temp_work_dir_cleaned_up_after(tmp_path):
     assert len(remaining) == 0
 
 
-def test_temp_work_dir_parent_created_if_missing(tmp_path):
+def test_temp_work_dir_parent_created_if_missing(tmp_path: Path) -> None:
     base = tmp_path / "does_not_exist" / "nested"
     with temp_work_dir(base) as td:
         assert base.exists()
@@ -166,11 +164,11 @@ def test_temp_work_dir_parent_created_if_missing(tmp_path):
 
 # ── clean_temp_dir tests ─────────────────────────────────────────────────────
 
-def test_clean_temp_dir_nonexistent_base_returns_zero():
+def test_clean_temp_dir_nonexistent_base_returns_zero() -> None:
     assert clean_temp_dir("/nonexistent/base/path/xyz") == 0
 
 
-def test_clean_temp_dir_removes_old_subdirs(tmp_path):
+def test_clean_temp_dir_removes_old_subdirs(tmp_path: Path) -> None:
     base = tmp_path / "clean_base"
     base.mkdir()
 
@@ -190,7 +188,7 @@ def test_clean_temp_dir_removes_old_subdirs(tmp_path):
     assert recent_dir.exists()
 
 
-def test_clean_temp_dir_respects_max_age_hours(tmp_path):
+def test_clean_temp_dir_respects_max_age_hours(tmp_path: Path) -> None:
     base = tmp_path / "age_test"
     base.mkdir()
 
@@ -204,7 +202,7 @@ def test_clean_temp_dir_respects_max_age_hours(tmp_path):
     assert almost_old.exists()
 
 
-def test_clean_temp_dir_files_not_deleted(tmp_path):
+def test_clean_temp_dir_files_not_deleted(tmp_path: Path) -> None:
     base = tmp_path / "files_test"
     base.mkdir()
 
@@ -223,7 +221,7 @@ def test_clean_temp_dir_files_not_deleted(tmp_path):
     assert regular_file.exists()
 
 
-def test_clean_temp_dir_ignores_regular_files_in_base(tmp_path):
+def test_clean_temp_dir_ignores_regular_files_in_base(tmp_path: Path) -> None:
     base = tmp_path / "regular_files"
     base.mkdir()
 

@@ -4,8 +4,14 @@ from pathlib import Path
 
 import pytest
 
-from archive_videos.config import AppConfig, CompressionConfig, FilterConfig, S3Config, load_config, resolve_config_path
-
+from archive_videos.config import (
+    AppConfig,
+    CompressionConfig,
+    FilterConfig,
+    S3Config,
+    load_config,
+    resolve_config_path,
+)
 
 SAMPLE_TOML = """
 library_path = "/Users/test/Pictures/Photos Library.photoslibrary"

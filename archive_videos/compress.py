@@ -201,7 +201,6 @@ def get_video_info(path: Path) -> dict[str, str | int | float | None]:
     if result.returncode != 0:
         raise RuntimeError(f"ffprobe failed: {result.stderr}")
 
-    import json
     data = json.loads(result.stdout)
     stream = (data.get("streams") or [{}])[0]
     fmt = data.get("format") or {}

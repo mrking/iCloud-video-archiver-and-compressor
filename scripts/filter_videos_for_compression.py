@@ -4,13 +4,15 @@ Filter videos for compression using ffprobe duration.
 Skips videos without local file/duration (not yet synced).
 Categorizes by bitrate to detect already-compressed videos.
 """
-import osxphotos
-import subprocess
-import os
 import json
+import os
+import subprocess
 from pathlib import Path
 
-def get_duration_ffprobe(path):
+import osxphotos
+
+
+def get_duration_ffprobe(path: str | None) -> float | None:
     """Get duration in seconds using ffprobe."""
     if not path or not os.path.exists(path):
         return None
@@ -31,13 +33,13 @@ def get_duration_ffprobe(path):
         pass
     return None
 
-def bitrate_mbps(size_mb, duration_s):
+def bitrate_mbps(size_mb: float, duration_s: float | None) -> float | None:
     """Calculate bitrate in MB per minute."""
     if not duration_s or duration_s <= 0:
         return None
     return (size_mb / duration_s) * 60
 
-def main():
+def main() -> None:
     db = osxphotos.PhotosDB()
     videos = db.photos(movies=True, images=False)
     print(f"Total videos in library: {len(videos)}")
@@ -45,9 +47,10 @@ def main():
 
     # Thresholds (MB per minute)
     COMPRESSED_THRESHOLD = 15    # Below this = already heavily compressed
-    NEEDS_COMPRESSION = 40       # Above this = worth compressing
+    # Above this = worth compressing
+    _NEEDS_COMPRESSION = 40
 
-    results = {
+    results: dict[str, list[dict[str, object]]] = {
         "already_compressed": [],
         "needs_compression": [],
         "no_duration": [],
@@ -87,10 +90,13 @@ def main():
     print("FILTERING RESULTS")
     print("=" * 60)
     print()
-    print(f"Already compressed (bitrate < {COMPRESSED_THRESHOLD} MB/min):     {len(results['already_compressed'])}")
-    print(f"Needs compression (bitrate >= {COMPRESSED_THRESHOLD} MB/min):      {len(results['needs_compression'])}")
-    print(f"No duration available (not synced?):                             {len(results['no_duration'])}")
-    print(f"No local file:                                                   {len(results['no_file'])}")
+    print(f"Already compressed (bitrate < {COMPRESSED_THRESHOLD} MB/min): "
+          f"{len(results['already_compressed'])}")
+    print(f"Needs compression (bitrate >= {COMPRESSED_THRESHOLD} MB/min): "
+          f"{len(results['needs_compression'])}")
+    print(f"No duration available (not synced?): "
+          f"{len(results['no_duration'])}")
+    print(f"No local file: {len(results['no_file'])}")
     print()
 
     # Show samples

@@ -36,7 +36,10 @@ def sha256_file(path: Path) -> str:
 
 
 @contextlib.contextmanager
-def temp_work_dir(base: str | Path = "/tmp/icloud-archiver", keep: bool = False) -> Generator[Path, None, None]:
+def temp_work_dir(
+    base: str | Path = "/tmp/icloud-archiver",
+    keep: bool = False,
+) -> Generator[Path, None, None]:
     """Create a scoped temporary working directory.
 
     If *keep* is True, the directory is NOT deleted on exit
@@ -55,8 +58,8 @@ def temp_work_dir(base: str | Path = "/tmp/icloud-archiver", keep: bool = False)
         finally:
             logger.info("Temp files preserved in %s (--keep-temps)", td)
     else:
-        with tempfile.TemporaryDirectory(dir=str(base_path), prefix="run_") as td:  # type: ignore[assignment]
-            yield Path(td)
+        with tempfile.TemporaryDirectory(dir=str(base_path), prefix="run_") as td_name:
+            yield Path(td_name)  # type: ignore[assignment]
 
 
 def clean_temp_dir(base: str | Path = "/tmp/icloud-archiver", max_age_hours: int = 48) -> int:
