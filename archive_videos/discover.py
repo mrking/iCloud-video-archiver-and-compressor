@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol, cast
 
-import osxphotos
+import osxphotos  # type: ignore[import-untyped]
 
 from .config import FilterConfig
 

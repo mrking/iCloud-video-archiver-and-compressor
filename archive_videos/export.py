@@ -7,7 +7,7 @@ import logging
 import shutil
 from pathlib import Path
 
-import osxphotos
+import osxphotos  # type: ignore[import-untyped]
 
 from .discover import VideoAsset
 
