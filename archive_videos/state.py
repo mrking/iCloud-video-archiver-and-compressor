@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
+from .discover import VideoAsset as _VideoAsset
+
 logger = logging.getLogger(__name__)
 
 SCHEMA = """
@@ -146,7 +148,6 @@ class StateDB:
         return VideoRecord(**kwargs)
 
 
-from .discover import VideoAsset as _VideoAsset
 
 
 def new_record_from_asset(asset: _VideoAsset, state: State = State.DISCOVERED) -> VideoRecord:

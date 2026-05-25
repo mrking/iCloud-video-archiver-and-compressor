@@ -6,7 +6,6 @@ import argparse
 import logging
 import sys
 from pathlib import Path
-
 from typing import Any
 
 from . import __version__

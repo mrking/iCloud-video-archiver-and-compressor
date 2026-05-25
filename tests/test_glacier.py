@@ -63,20 +63,28 @@ def test_calculate_sha256_different_content_different_hash(tmp_path: Path) -> No
 
 # ── upload_to_glacier dry-run tests ─────────────────────────────────────────
 
-def test_dry_run_returns_synthetic_id_and_does_not_upload(real_file: Path, s3_cfg: S3Config) -> None:
+def test_dry_run_returns_synthetic_id_and_does_not_upload(real_file: Path,
+        s3_cfg: S3Config,
+    ) -> None:
     result = upload_to_glacier(real_file, "originals/uuid/file.mp4", s3_cfg, dry_run=True)
     assert result.startswith("dry-run-")
     assert len(result) == len("dry-run-") + 16
 
 
 @patch("archive_videos.glacier.boto3")
-def test_dry_run_does_not_instantiate_boto3_client(mock_boto3: MagicMock, real_file: Path, s3_cfg: S3Config) -> None:
+def test_dry_run_does_not_instantiate_boto3_client(mock_boto3: MagicMock,
+        real_file: Path,
+        s3_cfg: S3Config,
+    ) -> None:
     upload_to_glacier(real_file, "key.mp4", s3_cfg, dry_run=True)
     mock_boto3.assert_not_called()
 
 
 @patch("archive_videos.glacier.calculate_sha256")
-def test_dry_run_calculates_checksum(mock_calc_sha: MagicMock, real_file: Path, s3_cfg: S3Config) -> None:
+def test_dry_run_calculates_checksum(mock_calc_sha: MagicMock,
+        real_file: Path,
+        s3_cfg: S3Config,
+    ) -> None:
     mock_calc_sha.return_value = "deadbeef" * 8  # 64-char fake
     result = upload_to_glacier(real_file, "key.mp4", s3_cfg, dry_run=True)
     mock_calc_sha.assert_called_once_with(real_file)
@@ -87,7 +95,11 @@ def test_dry_run_calculates_checksum(mock_calc_sha: MagicMock, real_file: Path, 
 
 @patch("archive_videos.glacier.boto3")
 @patch("archive_videos.glacier.calculate_sha256")
-def test_execute_uploads_with_correct_s3_args(mock_calc_sha: MagicMock, mock_boto3: MagicMock, real_file: Path, s3_cfg: S3Config) -> None:
+def test_execute_uploads_with_correct_s3_args(mock_calc_sha: MagicMock,
+        mock_boto3: MagicMock,
+        real_file: Path,
+        s3_cfg: S3Config,
+    ) -> None:
     fake_checksum = "abcd1234" * 8  # 64-char
     mock_calc_sha.return_value = fake_checksum
     mock_client = MagicMock()
@@ -113,7 +125,11 @@ def test_execute_uploads_with_correct_s3_args(mock_calc_sha: MagicMock, mock_bot
 
 @patch("archive_videos.glacier.boto3")
 @patch("archive_videos.glacier.calculate_sha256")
-def test_execute_calls_head_object_to_verify(mock_calc_sha: MagicMock, mock_boto3: MagicMock, real_file: Path, s3_cfg: S3Config) -> None:
+def test_execute_calls_head_object_to_verify(mock_calc_sha: MagicMock,
+        mock_boto3: MagicMock,
+        real_file: Path,
+        s3_cfg: S3Config,
+    ) -> None:
     mock_calc_sha.return_value = "abcd1234" * 8
     mock_client = MagicMock()
     mock_boto3.client.return_value = mock_client
@@ -134,7 +150,11 @@ def test_execute_calls_head_object_to_verify(mock_calc_sha: MagicMock, mock_boto
 
 @patch("archive_videos.glacier.boto3")
 @patch("archive_videos.glacier.calculate_sha256")
-def test_execute_returns_etag_stripped_of_quotes(mock_calc_sha: MagicMock, mock_boto3: MagicMock, real_file: Path, s3_cfg: S3Config) -> None:
+def test_execute_returns_etag_stripped_of_quotes(mock_calc_sha: MagicMock,
+        mock_boto3: MagicMock,
+        real_file: Path,
+        s3_cfg: S3Config,
+    ) -> None:
     mock_calc_sha.return_value = "abcd1234" * 8
     mock_client = MagicMock()
     mock_boto3.client.return_value = mock_client
@@ -150,7 +170,11 @@ def test_execute_returns_etag_stripped_of_quotes(mock_calc_sha: MagicMock, mock_
 
 @patch("archive_videos.glacier.boto3")
 @patch("archive_videos.glacier.calculate_sha256")
-def test_checksum_mismatch_raises_runtime_error(mock_calc_sha: MagicMock, mock_boto3: MagicMock, real_file: Path, s3_cfg: S3Config) -> None:
+def test_checksum_mismatch_raises_runtime_error(mock_calc_sha: MagicMock,
+        mock_boto3: MagicMock,
+        real_file: Path,
+        s3_cfg: S3Config,
+    ) -> None:
     # Use valid 64-char hex strings for strict comparison path
     local_sha = "a" * 64
     remote_sha = "b" * 64
@@ -170,7 +194,11 @@ def test_checksum_mismatch_raises_runtime_error(mock_calc_sha: MagicMock, mock_b
 
 @patch("archive_videos.glacier.boto3")
 @patch("archive_videos.glacier.calculate_sha256")
-def test_upload_failure_raises_boto_error(mock_calc_sha: MagicMock, mock_boto3: MagicMock, real_file: Path, s3_cfg: S3Config) -> None:
+def test_upload_failure_raises_boto_error(mock_calc_sha: MagicMock,
+        mock_boto3: MagicMock,
+        real_file: Path,
+        s3_cfg: S3Config,
+    ) -> None:
     mock_calc_sha.return_value = "abcd1234" * 8
     mock_client = MagicMock()
     mock_boto3.client.return_value = mock_client

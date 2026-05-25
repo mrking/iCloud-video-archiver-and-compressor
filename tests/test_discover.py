@@ -69,7 +69,10 @@ class TestDiscoverVideos:
         assert len(assets) == 1
         assert assets[0].codec == "h264"
 
-    def test_empty_string_codec_not_skipped_when_no_filter(self, tmp_path: Any, caplog: Any) -> None:
+    def test_empty_string_codec_not_skipped_when_no_filter(self,
+        tmp_path: Any,
+        caplog: Any,
+    ) -> None:
         """Empty string codec should not cause skip when no codec filter is set."""
         photo = _make_photo(codec="")
         p = tmp_path / "photo.mov"
