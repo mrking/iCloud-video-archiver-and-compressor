@@ -105,7 +105,9 @@ def test_write_sidecar_creates_parent_dirs(sample_asset: VideoAsset, tmp_path: P
 
 # ── export_original dry-run tests ─────────────────────────────────────────────
 
-def test_export_original_dry_run_creates_placeholder(sample_asset: VideoAsset, tmp_path: Path) -> None:
+def test_export_original_dry_run_creates_placeholder(
+    sample_asset: VideoAsset, tmp_path: Path
+) -> None:
     dest_dir = tmp_path / "exports"
     result = export_original(sample_asset, dest_dir, dry_run=True)
 
@@ -114,7 +116,9 @@ def test_export_original_dry_run_creates_placeholder(sample_asset: VideoAsset, t
     assert result.read_text() == "DRY_RUN_PLACEHOLDER"
 
 
-def test_export_original_dry_run_does_not_call_photosdb(sample_asset: VideoAsset, tmp_path: Path) -> None:
+def test_export_original_dry_run_does_not_call_photosdb(
+    sample_asset: VideoAsset, tmp_path: Path
+) -> None:
     """Dry-run should not instantiate or call PhotosDB."""
     dest_dir = tmp_path / "exports"
     with patch("archive_videos.export.osxphotos.PhotosDB") as mock_db_cls:
@@ -155,7 +159,9 @@ def test_export_original_execute_calls_photosdb(sample_asset: VideoAsset, tmp_pa
     assert result.name == f"exported_{sample_asset.filename}"
 
 
-def test_export_original_execute_calls_export_on_photo(sample_asset: VideoAsset, tmp_path: Path) -> None:
+def test_export_original_execute_calls_export_on_photo(
+    sample_asset: VideoAsset, tmp_path: Path
+) -> None:
     mock_photo = _make_mock_photo(sample_asset)
     mock_db = MagicMock()
     mock_db.get_photo.return_value = mock_photo
