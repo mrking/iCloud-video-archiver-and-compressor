@@ -6,7 +6,7 @@ import logging
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, cast
 
 import osxphotos
 
@@ -148,7 +148,8 @@ def discover_videos(
     videos = photosdb.photos(images=False, movies=True)
 
     results: list[VideoAsset] = []
-    for photo in videos:
+    for photo in videos:  # type: ignore[union-attr]
+        photo = cast(osxphotos.PhotoInfo, photo)
         duration_db = getattr(photo, "duration", 0.0) or 0.0
         duration = duration_db if duration_db > 0 else _get_duration_ffprobe(photo)
         if not duration or duration <= 0:
