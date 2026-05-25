@@ -71,15 +71,17 @@ def upload_to_glacier(
 
     # S3 may return a multipart ETag (base64-N) instead of SHA-256 for large files.
     # Only enforce comparison when we actually got a valid 64-char hex SHA-256.
-    if remote_checksum and len(remote_checksum) == 64 and all(c in "0123456789abcdef" for c in remote_checksum.lower()):
+    if remote_checksum and len(remote_checksum) == 64 and all(
+        c in "0123456789abcdef" for c in remote_checksum.lower()
+    ):
         if remote_checksum.lower() != chk.lower():
             raise RuntimeError(
                 f"Checksum mismatch after upload: local={chk} remote={remote_checksum}"
             )
     elif remote_checksum:
         logger.warning(
-            "S3 returned non-hex checksum for %s (likely multipart ETag): %s. Skipping strict verification.",
-            s3_key, remote_checksum,
+            "S3 returned non-hex checksum for %s (multipart ETag). Skipping strict verification.",
+            s3_key,
         )
     else:
         logger.warning(

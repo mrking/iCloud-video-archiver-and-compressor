@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from archive_videos.discover import VideoAsset
 from archive_videos.export import export_original, write_sidecar
-
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -100,7 +99,8 @@ def test_write_sidecar_creates_parent_dirs(sample_asset, tmp_path):
     sidecar = tmp_path / "deep" / "nested" / "path" / "11111111.json"
     write_sidecar(sample_asset, sidecar)
     assert sidecar.exists()
-    assert json.loads(sidecar.read_text(encoding="utf-8"))["uuid"] == "11111111-1111-1111-1111-111111111111"
+    assert json.loads(sidecar.read_text(encoding="utf-8"))["uuid"] == \
+        "11111111-1111-1111-1111-111111111111"
 
 
 # ── export_original dry-run tests ─────────────────────────────────────────────

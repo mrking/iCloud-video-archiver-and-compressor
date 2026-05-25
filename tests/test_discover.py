@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
-
 from archive_videos.config import FilterConfig
-from archive_videos.discover import VideoAsset, discover_videos
+from archive_videos.discover import discover_videos
 
 
 def _make_photo(

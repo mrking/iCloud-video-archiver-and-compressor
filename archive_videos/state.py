@@ -7,7 +7,6 @@ import sqlite3
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-import json
 
 logger = logging.getLogger(__name__)
 

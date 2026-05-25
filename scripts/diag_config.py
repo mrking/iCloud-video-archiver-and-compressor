@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Diagnostic script for archive-config.toml."""
-import toml
 from pathlib import Path
+
+import toml
 
 cfg_path = Path("archive-config.toml")
 if not cfg_path.exists():

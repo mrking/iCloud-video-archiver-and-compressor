@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from archive_videos.glacier import calculate_sha256, upload_to_glacier
 from archive_videos.config import S3Config
-
+from archive_videos.glacier import calculate_sha256, upload_to_glacier
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -99,7 +98,7 @@ def test_execute_uploads_with_correct_s3_args(mock_calc_sha, mock_boto3, real_fi
         "ChecksumSHA256": fake_checksum,
     }
 
-    result = upload_to_glacier(real_file, "originals/uuid/file.mp4", s3_cfg, dry_run=False)
+    upload_to_glacier(real_file, "originals/uuid/file.mp4", s3_cfg, dry_run=False)
 
     mock_client.upload_file.assert_called_once_with(
         Filename=str(real_file),

@@ -12,11 +12,9 @@ import pytest
 
 from archive_videos.utils import (
     clean_temp_dir,
-    setup_logging,
     sha256_file,
     temp_work_dir,
 )
-
 
 # ── sha256_file tests ───────────────────────────────────────────────────────
 
@@ -75,7 +73,7 @@ def _run_in_subprocess(code: str) -> subprocess.CompletedProcess:
 
 
 def test_setup_logging_sets_root_logger_level_debug(tmp_path):
-    code = f"""
+    code = """
 import logging
 from archive_videos.utils import setup_logging
 setup_logging(level="DEBUG")
@@ -120,14 +118,14 @@ logger.info("another message")
 
 def test_setup_logging_invalid_level_does_not_raise(tmp_path):
     """Unknown level string should not raise — falls back gracefully."""
-    code = f"""
+    code = """
 import logging
 from archive_videos.utils import setup_logging
 try:
     setup_logging(level="NOT_A_REAL_LEVEL")
     print("ok")
 except Exception as e:
-    print(f"ERROR: {{e}}")
+    print(f"ERROR: {e}")
 """
     r = _run_in_subprocess(code)
     assert "ok" in r.stdout, r.stderr

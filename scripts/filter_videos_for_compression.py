@@ -4,11 +4,13 @@ Filter videos for compression using ffprobe duration.
 Skips videos without local file/duration (not yet synced).
 Categorizes by bitrate to detect already-compressed videos.
 """
-import osxphotos
-import subprocess
-import os
 import json
+import os
+import subprocess
 from pathlib import Path
+
+import osxphotos
+
 
 def get_duration_ffprobe(path):
     """Get duration in seconds using ffprobe."""
@@ -45,7 +47,8 @@ def main():
 
     # Thresholds (MB per minute)
     COMPRESSED_THRESHOLD = 15    # Below this = already heavily compressed
-    NEEDS_COMPRESSION = 40       # Above this = worth compressing
+    # Above this = worth compressing
+    _NEEDS_COMPRESSION = 40
 
     results = {
         "already_compressed": [],
@@ -87,10 +90,13 @@ def main():
     print("FILTERING RESULTS")
     print("=" * 60)
     print()
-    print(f"Already compressed (bitrate < {COMPRESSED_THRESHOLD} MB/min):     {len(results['already_compressed'])}")
-    print(f"Needs compression (bitrate >= {COMPRESSED_THRESHOLD} MB/min):      {len(results['needs_compression'])}")
-    print(f"No duration available (not synced?):                             {len(results['no_duration'])}")
-    print(f"No local file:                                                   {len(results['no_file'])}")
+    print(f"Already compressed (bitrate < {COMPRESSED_THRESHOLD} MB/min): "
+          f"{len(results['already_compressed'])}")
+    print(f"Needs compression (bitrate >= {COMPRESSED_THRESHOLD} MB/min): "
+          f"{len(results['needs_compression'])}")
+    print(f"No duration available (not synced?): "
+          f"{len(results['no_duration'])}")
+    print(f"No local file: {len(results['no_file'])}")
     print()
 
     # Show samples

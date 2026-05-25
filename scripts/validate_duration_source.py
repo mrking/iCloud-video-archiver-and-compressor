@@ -3,9 +3,11 @@
 Validate whether video duration is stored in Photos DB vs file metadata.
 Compares p.duration (DB) vs ffprobe (actual file) across all videos.
 """
-import osxphotos
-import subprocess
 import os
+import subprocess
+
+import osxphotos
+
 
 def get_duration_ffprobe(path):
     """Get duration in seconds using ffprobe."""
@@ -67,17 +69,22 @@ for p in videos:
                     'diff': abs(db_dur - file_dur)
                 })
 
-print(f"DB duration present:     {db_has_duration} ({db_has_duration/len(videos)*100:.1f}%)")
-print(f"DB duration missing:     {db_missing_duration} ({db_missing_duration/len(videos)*100:.1f}%)")
+print(f"DB duration present: {db_has_duration} "
+      f"({db_has_duration / len(videos) * 100:.1f}%)")
+print(f"DB duration missing: {db_missing_duration} "
+      f"({db_missing_duration / len(videos) * 100:.1f}%)")
 print()
-print(f"ffprobe duration found:  {ffprobe_has_duration} ({ffprobe_has_duration/len(videos)*100:.1f}%)")
-print(f"ffprobe duration miss:   {ffprobe_missing} ({ffprobe_missing/len(videos)*100:.1f}%)")
+print(f"ffprobe duration found: {ffprobe_has_duration} "
+      f"({ffprobe_has_duration / len(videos) * 100:.1f}%)")
+print(f"ffprobe duration miss: {ffprobe_missing} "
+      f"({ffprobe_missing / len(videos) * 100:.1f}%)")
 print()
 print(f"DB vs file mismatch (>1s): {mismatch}")
 if sample_mismatches:
     print("\nSample mismatches:")
     for m in sample_mismatches:
-        print(f"  {m['filename']}: DB={m['db_dur']:.1f}s, file={m['file_dur']:.1f}s, diff={m['diff']:.1f}s")
+        print(f"  {m['filename']}: "
+              f"DB={m['db_dur']:.1f}s, file={m['file_dur']:.1f}s, diff={m['diff']:.1f}s")
 
 # Detailed sample of first 20
 print("\n" + "="*70)
@@ -87,10 +94,10 @@ for p in videos[:20]:
     path = getattr(p, 'path_original', None) or getattr(p, 'path', '')
     file_dur = get_duration_ffprobe(path)
     size_mb = os.path.getsize(path) / (1024 * 1024) if path and os.path.exists(path) else 0
-    
+
     db_str = f"{db_dur:.1f}s" if db_dur else "None"
     file_str = f"{file_dur:.1f}s" if file_dur else "None"
-    
+
     print(f"  {p.filename}:")
     print(f"    DB duration:    {db_str}")
     print(f"    File duration:  {file_str}")

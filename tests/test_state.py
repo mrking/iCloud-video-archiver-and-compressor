@@ -7,7 +7,7 @@ from archive_videos.state import State, StateDB, VideoRecord
 
 def test_init_db(tmp_path: Path) -> None:
     db_path = tmp_path / "state.db"
-    db = StateDB(db_path)
+    _ = StateDB(db_path)
     assert db_path.exists()
 
 

@@ -8,10 +8,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from archive_videos.cli import process_asset
-from archive_videos.config import AppConfig, CompressionConfig, S3Config, FilterConfig
+from archive_videos.config import AppConfig, CompressionConfig, FilterConfig, S3Config
 from archive_videos.discover import VideoAsset
 from archive_videos.state import State, StateDB, VideoRecord
-
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -242,10 +241,12 @@ def test_recovery_error_state_recorded_on_compress_failure(
         except RuntimeError:
             pass
         # Caller (main) records ERROR; process_asset itself does not catch.
-        _update_state = lambda uuid, filename, state, **kw: (
+        def _update_state(uuid, filename, state, **kw):
             db.insert_or_update(VideoRecord(uuid=uuid, filename=filename, state=state, **kw))
+        _update_state(
+            sample_asset.uuid, sample_asset.filename, State.ERROR,
+            error_log="ffmpeg crashed",
         )
-        _update_state(sample_asset.uuid, sample_asset.filename, State.ERROR, error_log="ffmpeg crashed")
 
     record = db.get(sample_asset.uuid)
     assert record is not None

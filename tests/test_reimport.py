@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 
@@ -12,10 +12,9 @@ from archive_videos.discover import VideoAsset
 from archive_videos.reimport import (
     delete_original,
     import_compressed,
-    restore_metadata,
     reimport_asset,
+    restore_metadata,
 )
-
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -156,7 +155,8 @@ def test_restore_metadata_osascript_failure_is_warning_not_error(mock_osascript,
 def test_reimport_asset_dry_run_no_restore(
     mock_delete, mock_import, sample_asset, tmp_path
 ):
-    """With dry_run=True, delete_original and import_compressed are called but restore_metadata is skipped because import returns None."""
+    """With dry_run=True, delete_original and import_compressed are called
+    but restore_metadata is skipped because import returns None."""
     compressed = tmp_path / "compressed.mp4"
     compressed.write_bytes(b"data")
     mock_import.return_value = None
@@ -189,7 +189,9 @@ def test_reimport_asset_compressed_not_found(sample_asset, tmp_path):
 
 @patch("archive_videos.reimport.import_compressed", return_value=None)
 @patch("archive_videos.reimport._osascript")
-def test_reimport_asset_import_returns_none_skips_restore(mock_osascript, mock_import, sample_asset, tmp_path):
+def test_reimport_asset_import_returns_none_skips_restore(
+    mock_osascript, mock_import, sample_asset, tmp_path
+):
     """When import_compressed returns None (no UUID), restore_metadata is not called."""
     compressed = tmp_path / "compressed.mp4"
     compressed.write_bytes(b"data")

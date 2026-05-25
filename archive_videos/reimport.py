@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import subprocess
 from pathlib import Path
@@ -105,12 +104,12 @@ def import_compressed(path: Path, dry_run: bool = True) -> str | None:
         return None
     logger.info("Importing %s", path)
     result = _osascript(IMPORT_SCRIPT.format(path=str(path)))
-    
+
     # Photos.app import returns "media item id C6951039-..."; strip the prefix
     if result and "media item id " in result:
         result = result.replace("media item id ", "").strip()
         logger.info("Imported with UUID: %s", result)
-    
+
     # Photos.app import may return nothing useful; callers should match by filename.
     return result or None
 
@@ -126,20 +125,34 @@ def restore_metadata(new_uuid: str, asset: VideoAsset, dry_run: bool = True) -> 
         # macOS AppleScript date format: "Saturday, January 1, 2000 at 12:00:00 AM"
         # We'll attempt ISO -> AppleScript date via Photos app coercion
         try:
-            _osascript(SET_DATE_SCRIPT.format(uuid=new_uuid, date_str=asset.date, filename=asset.filename))
+            _osascript(
+                SET_DATE_SCRIPT.format(
+                    uuid=new_uuid, date_str=asset.date, filename=asset.filename
+                )
+            )
         except RuntimeError as exc:
             logger.warning("Failed to set date for %s: %s", new_uuid, exc)
 
     # Favorite
     try:
-        _osascript(FAVORITE_SCRIPT.format(uuid=new_uuid, favorite_val="true" if asset.favorite else "false", filename=asset.filename))
+        _osascript(
+            FAVORITE_SCRIPT.format(
+                uuid=new_uuid,
+                favorite_val="true" if asset.favorite else "false",
+                filename=asset.filename,
+            )
+        )
     except RuntimeError as exc:
         logger.warning("Failed to set favorite for %s: %s", new_uuid, exc)
 
     # Albums
     for album in asset.albums:
         try:
-            _osascript(ADD_TO_ALBUM_SCRIPT.format(uuid=new_uuid, album_name=album, filename=asset.filename))
+            _osascript(
+            ADD_TO_ALBUM_SCRIPT.format(
+                uuid=new_uuid, album_name=album, filename=asset.filename
+            )
+        )
         except RuntimeError as exc:
             logger.warning("Failed to add %s to album '%s': %s", new_uuid, album, exc)
 
@@ -164,6 +177,9 @@ def reimport_asset(
     try:
         delete_original(asset, dry_run=dry_run)
     except RuntimeError as exc:
-        logger.warning("Failed to delete original %s: %s. Manual cleanup may be needed.", asset.uuid, exc)
+        logger.warning(
+            "Failed to delete original %s: %s. Manual cleanup may be needed.",
+            asset.uuid, exc,
+        )
 
     return new_uuid

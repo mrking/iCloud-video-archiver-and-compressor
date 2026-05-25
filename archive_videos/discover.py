@@ -126,7 +126,8 @@ def discover_videos(
     min_bitrate_mbps:
         Minimum bitrate threshold (default 15 Mbps). DEPRECATED: use filter_config instead.
     codecs:
-        Set of codec identifiers to target (default UNCOMPRESSED_CODECS). DEPRECATED: use filter_config instead.
+        Set of codec identifiers to target (default UNCOMPRESSED_CODECS).
+        DEPRECATED: use filter_config instead.
     db:
         Optional pre-opened PhotosDB for testing.
     filter_config:
@@ -165,7 +166,10 @@ def discover_videos(
         # Fallback bitrate calculation using ffprobe duration if DB bitrate missing
         if bitrate is None and file_size_mb and duration:
             bitrate = round((file_size_mb * 8) / (duration / 60), 2)
-            logger.debug("Bitrate for %s calculated via ffprobe fallback: %.2f Mbps", photo.filename, bitrate)
+            logger.debug(
+                "Bitrate for %s calculated via ffprobe fallback: %.2f Mbps",
+                photo.filename, bitrate,
+            )
 
         # Filter by file size if configured
         if min_file_size > 0:

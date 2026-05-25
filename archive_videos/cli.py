@@ -14,7 +14,7 @@ from .discover import VideoAsset, discover_videos
 from .export import export_original, write_sidecar
 from .glacier import upload_to_glacier
 from .reimport import reimport_asset
-from .state import State, StateDB, VideoRecord, new_record_from_asset
+from .state import State, StateDB, VideoRecord
 from .utils import setup_logging, temp_work_dir
 
 logger = logging.getLogger(__name__)
@@ -30,16 +30,26 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--execute", action="store_true", help="Run for real (default is dry-run)"
     )
-    parser.add_argument("--resume", action="store_true", help="Resume interrupted run from state DB")
+    parser.add_argument("--resume", action="store_true",
+                        help="Resume interrupted run from state DB")
     parser.add_argument("--library-path", default=None, help="Path to Photos library")
     parser.add_argument("--state-db", default="./archive-state.db", help="Path to SQLite state DB")
-    parser.add_argument("--limit", type=int, default=0, help="Limit number of videos to process")
-    parser.add_argument("--keep-temps", action="store_true", help="Preserve temp working directory after run for inspection")
-    parser.add_argument("--log-level", default=None, help="Override log level from config")
+    parser.add_argument("--limit", type=int, default=0,
+                        help="Limit number of videos to process")
+    parser.add_argument("--keep-temps", action="store_true",
+                        help="Preserve temp working directory after run for inspection")
+    parser.add_argument("--log-level", default=None,
+                        help="Override log level from config")
     return parser
 
 
-def _update_state(db: StateDB, uuid: str, filename: str, state: State, **kwargs: str | None) -> None:
+def _update_state(
+    db: StateDB,
+    uuid: str,
+    filename: str,
+    state: State,
+    **kwargs: str | None,
+) -> None:
     # Preserve existing field values when not explicitly provided
     existing = db.get(uuid)
     base = {
@@ -105,7 +115,7 @@ def process_asset(
 
     # 5. Reimport
     _update_state(db, asset.uuid, asset.filename, State.DELETED)
-    new_uuid = reimport_asset(asset, compressed_path, dry_run=dry_run)
+    reimport_asset(asset, compressed_path, dry_run=dry_run)
     _update_state(db, asset.uuid, asset.filename, State.IMPORTED)
 
     # 6. Metadata restore (inside reimport_asset; mark done)

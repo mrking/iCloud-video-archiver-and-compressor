@@ -1,6 +1,5 @@
 """Config loader and validator for archive-config.toml."""
 
-import os
 from pathlib import Path
 from typing import Literal
 
@@ -22,7 +21,8 @@ class CompressionConfig(BaseModel):
     codec: Literal["h264", "hevc"] = Field(default="hevc", description="Target codec")
     crf: int = Field(default=23, ge=0, le=51, description="Constant rate factor (0-51)")
     preset: Literal[
-        "ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"
+        "ultrafast", "superfast", "veryfast", "faster", "fast",
+        "medium", "slow", "slower", "veryslow"
     ] = Field(default="medium", description="Encoding speed preset")
     max_height: int = Field(default=1080, ge=480, le=4320, description="Max output height")
     max_bitrate_mbps: float = Field(
@@ -38,7 +38,9 @@ class CompressionConfig(BaseModel):
     @classmethod
     def crf_range(cls, v: int) -> int:
         if v < 18:
-            raise ValueError("CRF below 18 produces extremely large files; use 18-28 for good quality.")
+            raise ValueError(
+                "CRF below 18 produces extremely large files; use 18-28 for good quality."
+            )
         return v
 
 
@@ -64,7 +66,10 @@ class AppConfig(BaseModel):
     )
     s3: S3Config
     compression: CompressionConfig
-    filter: FilterConfig = Field(default_factory=FilterConfig, description="Discovery filter settings")
+    filter: FilterConfig = Field(
+        default_factory=FilterConfig,
+        description="Discovery filter settings",
+    )
     temp_dir: str = Field(default="/tmp/icloud-archiver", description="Temp working directory")
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(default="INFO")
     dry_run: bool = Field(default=True, description="Dry-run by default")
