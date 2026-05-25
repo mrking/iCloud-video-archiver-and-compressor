@@ -146,7 +146,10 @@ class StateDB:
         return VideoRecord(**kwargs)
 
 
-def new_record_from_asset(asset, state: State = State.DISCOVERED) -> VideoRecord:
+from .discover import VideoAsset as _VideoAsset
+
+
+def new_record_from_asset(asset: _VideoAsset, state: State = State.DISCOVERED) -> VideoRecord:
     """Create a fresh VideoRecord from a discovered asset."""
     return VideoRecord(
         uuid=asset.uuid,

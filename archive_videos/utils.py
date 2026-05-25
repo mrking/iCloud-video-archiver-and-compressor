@@ -58,8 +58,8 @@ def temp_work_dir(
         finally:
             logger.info("Temp files preserved in %s (--keep-temps)", td)
     else:
-        with tempfile.TemporaryDirectory(dir=str(base_path), prefix="run_") as td:
-            yield Path(td)
+        with tempfile.TemporaryDirectory(dir=str(base_path), prefix="run_") as td_name:
+            yield Path(td_name)  # type: ignore[assignment]
 
 
 def clean_temp_dir(base: str | Path = "/tmp/icloud-archiver", max_age_hours: int = 48) -> int:

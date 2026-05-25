@@ -7,6 +7,8 @@ import logging
 import sys
 from pathlib import Path
 
+from typing import Any
+
 from . import __version__
 from .compress import compress_video
 from .config import AppConfig, load_config, resolve_config_path
@@ -52,7 +54,7 @@ def _update_state(
 ) -> None:
     # Preserve existing field values when not explicitly provided
     existing = db.get(uuid)
-    base = {
+    base: dict[str, Any] = {
         "uuid": uuid,
         "filename": filename,
         "state": state,

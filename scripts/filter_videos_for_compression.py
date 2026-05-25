@@ -12,7 +12,7 @@ from pathlib import Path
 import osxphotos
 
 
-def get_duration_ffprobe(path):
+def get_duration_ffprobe(path: str | None) -> float | None:
     """Get duration in seconds using ffprobe."""
     if not path or not os.path.exists(path):
         return None
@@ -33,13 +33,13 @@ def get_duration_ffprobe(path):
         pass
     return None
 
-def bitrate_mbps(size_mb, duration_s):
+def bitrate_mbps(size_mb: float, duration_s: float | None) -> float | None:
     """Calculate bitrate in MB per minute."""
     if not duration_s or duration_s <= 0:
         return None
     return (size_mb / duration_s) * 60
 
-def main():
+def main() -> None:
     db = osxphotos.PhotosDB()
     videos = db.photos(movies=True, images=False)
     print(f"Total videos in library: {len(videos)}")
@@ -50,7 +50,7 @@ def main():
     # Above this = worth compressing
     _NEEDS_COMPRESSION = 40
 
-    results = {
+    results: dict[str, list[dict[str, object]]] = {
         "already_compressed": [],
         "needs_compression": [],
         "no_duration": [],

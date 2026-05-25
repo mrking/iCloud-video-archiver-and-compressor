@@ -88,6 +88,6 @@ def upload_to_glacier(
             "S3 did not return SHA-256 checksum for %s. Skipping verification.", s3_key
         )
 
-    etag = head.get("ETag", "").strip('"')
+    etag = str(head.get("ETag", "")).strip('"')
     logger.info("Upload verified. ETag=%s", etag)
     return etag

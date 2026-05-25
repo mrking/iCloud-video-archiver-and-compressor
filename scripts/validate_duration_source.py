@@ -9,7 +9,7 @@ import subprocess
 import osxphotos
 
 
-def get_duration_ffprobe(path):
+def get_duration_ffprobe(path: str | None) -> float | None:
     """Get duration in seconds using ffprobe."""
     if not path or not os.path.exists(path):
         return None
@@ -41,7 +41,7 @@ db_missing_duration = 0
 ffprobe_has_duration = 0
 ffprobe_missing = 0
 mismatch = 0
-sample_mismatches = []
+sample_mismatches: list[dict[str, object]] = []
 
 for p in videos:
     db_dur = getattr(p, 'duration', None)
