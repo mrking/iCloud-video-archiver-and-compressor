@@ -8,6 +8,10 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 import json
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import osxphotos  # type: ignore[import-not-found]
 
 logger = logging.getLogger(__name__)
 
@@ -147,7 +151,7 @@ class StateDB:
         return VideoRecord(**kwargs)
 
 
-def new_record_from_asset(asset, state: State = State.DISCOVERED) -> VideoRecord:
+def new_record_from_asset(asset: osxphotos.PhotoInfo, state: State = State.DISCOVERED) -> VideoRecord:
     """Create a fresh VideoRecord from a discovered asset."""
     return VideoRecord(
         uuid=asset.uuid,
