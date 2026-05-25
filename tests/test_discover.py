@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Any, List, Optional
 from unittest.mock import MagicMock
 
 from archive_videos.config import FilterConfig
@@ -9,21 +10,21 @@ from archive_videos.discover import discover_videos
 
 
 def _make_photo(
-    uuid="uuid-1",
-    filename="IMG_0001.MOV",
-    path="/tmp/photo.mov",
-    duration=10.0,
-    codec="hevc",
-    width=1920,
-    height=1080,
-    date="2024-01-01",
-    title="Test",
-    keywords=None,
-    albums=None,
-    favorite=False,
-    latitude=None,
-    longitude=None,
-):
+    uuid: str = "uuid-1",
+    filename: str = "IMG_0001.MOV",
+    path: str = "/tmp/photo.mov",
+    duration: float = 10.0,
+    codec: str = "hevc",
+    width: int = 1920,
+    height: int = 1080,
+    date: str = "2024-01-01",
+    title: str = "Test",
+    keywords: Optional[List[str]] = None,
+    albums: Optional[List[str]] = None,
+    favorite: bool = False,
+    latitude: Optional[float] = None,
+    longitude: Optional[float] = None,
+) -> MagicMock:
     photo = MagicMock()
     photo.uuid = uuid
     photo.filename = filename
@@ -44,15 +45,15 @@ def _make_photo(
 
 
 class MockPhotosDB:
-    def __init__(self, photos):
+    def __init__(self, photos: List[Any]) -> None:
         self._photos = photos
 
-    def photos(self, images=False, movies=True):
+    def photos(self, **kwargs: object) -> List[Any]:
         return self._photos
 
 
 class TestDiscoverVideos:
-    def test_empty_target_codecs_includes_all(self, tmp_path, caplog):
+    def test_empty_target_codecs_includes_all(self, tmp_path: Any, caplog: Any) -> None:
         """Empty target_codecs list should include all videos regardless of codec."""
         photo = _make_photo(codec="h264")
         # Write a real file so size measurement works
@@ -68,7 +69,7 @@ class TestDiscoverVideos:
         assert len(assets) == 1
         assert assets[0].codec == "h264"
 
-    def test_empty_string_codec_not_skipped_when_no_filter(self, tmp_path, caplog):
+    def test_empty_string_codec_not_skipped_when_no_filter(self, tmp_path: Any, caplog: Any) -> None:
         """Empty string codec should not cause skip when no codec filter is set."""
         photo = _make_photo(codec="")
         p = tmp_path / "photo.mov"
@@ -83,7 +84,7 @@ class TestDiscoverVideos:
         assert len(assets) == 1
         assert assets[0].codec is None
 
-    def test_target_codecs_filter(self, tmp_path):
+    def test_target_codecs_filter(self, tmp_path: Any) -> None:
         """Only videos with codecs in target_codecs should be included."""
         photo_hevc = _make_photo(uuid="u1", codec="hevc")
         photo_h264 = _make_photo(uuid="u2", codec="h264")
@@ -102,7 +103,7 @@ class TestDiscoverVideos:
         assert len(assets) == 1
         assert assets[0].uuid == "u1"
 
-    def test_min_file_size_mb_filter(self, tmp_path):
+    def test_min_file_size_mb_filter(self, tmp_path: Any) -> None:
         """Videos smaller than min_file_size_mb should be skipped."""
         photo_big = _make_photo(uuid="u1", filename="big.mov")
         photo_small = _make_photo(uuid="u2", filename="small.mov")
@@ -124,7 +125,7 @@ class TestDiscoverVideos:
         assert len(assets) == 1
         assert assets[0].uuid == "u1"
 
-    def test_min_bitrate_mbps_filter(self, tmp_path):
+    def test_min_bitrate_mbps_filter(self, tmp_path: Any) -> None:
         """Videos with bitrate below min_bitrate_mbps should be skipped."""
         photo_high = _make_photo(uuid="u1", filename="high.mov", duration=10.0)
         photo_low = _make_photo(uuid="u2", filename="low.mov", duration=10.0)
@@ -147,7 +148,7 @@ class TestDiscoverVideos:
         assert len(assets) == 1
         assert assets[0].uuid == "u1"
 
-    def test_zero_filters_include_all(self, tmp_path):
+    def test_zero_filters_include_all(self, tmp_path: Any) -> None:
         """All filters at 0/empty should include every video."""
         photo = _make_photo(codec="anything")
         p = tmp_path / "photo.mov"
@@ -161,7 +162,7 @@ class TestDiscoverVideos:
 
         assert len(assets) == 1
 
-    def test_legacy_args_still_work(self, tmp_path):
+    def test_legacy_args_still_work(self, tmp_path: Any) -> None:
         """Deprecated min_bitrate_mbps and codecs args still function."""
         photo = _make_photo(codec="hevc")
         p = tmp_path / "photo.mov"

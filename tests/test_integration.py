@@ -15,7 +15,7 @@ from archive_videos.state import State, StateDB, VideoRecord
 # ── Fixtures ────────────────────────────────────────────────────────────────
 
 @pytest.fixture
-def cfg(tmp_path) -> AppConfig:
+def cfg(tmp_path: Path) -> AppConfig:
     return AppConfig(
         library_path="/Photos",
         temp_dir=str(tmp_path / "work"),
@@ -33,7 +33,7 @@ def cfg(tmp_path) -> AppConfig:
 
 
 @pytest.fixture
-def work_dir(tmp_path) -> Path:
+def work_dir(tmp_path: Path) -> Path:
     """Shared work directory — created once per test."""
     d = tmp_path / "work"
     d.mkdir(parents=True, exist_ok=True)
@@ -86,12 +86,12 @@ def _setup_asset_files(work_dir: Path, asset: VideoAsset) -> tuple[Path, Path]:
     return original, compressed
 
 
-def _mock_temp_work_dir(work_dir: Path):
+def _mock_temp_work_dir(work_dir: Path) -> MagicMock:
     """Patch temp_work_dir to yield work_dir without creating anything."""
     mock_cm = MagicMock()
-    mock_cm.__enter__ = MagicMock(return_value=work_dir)
-    mock_cm.__exit__ = MagicMock(return_value=False)
-    return patch("archive_videos.cli.temp_work_dir", return_value=mock_cm)
+    mock_cm.__enter__.return_value = work_dir
+    mock_cm.__exit__.return_value = False
+    return patch("archive_videos.cli.temp_work_dir", return_value=mock_cm)  # type: ignore[return-value]
 
 
 # ── Happy path tests ─────────────────────────────────────────────────────────
@@ -102,10 +102,10 @@ def _mock_temp_work_dir(work_dir: Path):
 @patch("archive_videos.cli.compress_video")
 @patch("archive_videos.cli.export_original")
 def test_happy_path_all_states_transition(
-    mock_export, mock_compress, mock_upload,
-    mock_write_sidecar, mock_reimport,
-    sample_asset, cfg, work_dir,
-):
+    mock_export: MagicMock, mock_compress: MagicMock, mock_upload: MagicMock,
+    mock_write_sidecar: MagicMock, mock_reimport: MagicMock,
+    sample_asset: VideoAsset, cfg: AppConfig, work_dir: Path,
+) -> None:
     """Full pipeline: export → compress → upload → reimport → final state DONE."""
     original, compressed = _setup_asset_files(work_dir, sample_asset)
     mock_export.return_value = original
@@ -122,7 +122,9 @@ def test_happy_path_all_states_transition(
     assert mock_upload.call_count == 1
     assert mock_write_sidecar.call_count == 1
     assert mock_reimport.call_count == 1
-    assert db.get(sample_asset.uuid).state == State.DONE
+    record = db.get(sample_asset.uuid)
+    assert record is not None
+    assert record.state == State.DONE
 
 
 @patch("archive_videos.cli.reimport_asset")
@@ -131,10 +133,10 @@ def test_happy_path_all_states_transition(
 @patch("archive_videos.cli.compress_video")
 @patch("archive_videos.cli.export_original")
 def test_happy_path_compressed_path_written_to_state(
-    mock_export, mock_compress, mock_upload,
-    mock_write_sidecar, mock_reimport,
-    sample_asset, cfg, work_dir,
-):
+    mock_export: MagicMock, mock_compress: MagicMock, mock_upload: MagicMock,
+    mock_write_sidecar: MagicMock, mock_reimport: MagicMock,
+    sample_asset: VideoAsset, cfg: AppConfig, work_dir: Path,
+) -> None:
     """After COMPRESSED step, compressed_path is persisted to DB."""
     original, compressed = _setup_asset_files(work_dir, sample_asset)
     mock_export.return_value = original
@@ -147,6 +149,7 @@ def test_happy_path_compressed_path_written_to_state(
         process_asset(sample_asset, cfg, db, dry_run=True, work_dir=work_dir)
 
     record = db.get(sample_asset.uuid)
+    assert record is not None
     assert record.compressed_path is not None
     assert "compressed" in record.compressed_path
 
@@ -157,10 +160,10 @@ def test_happy_path_compressed_path_written_to_state(
 @patch("archive_videos.cli.compress_video")
 @patch("archive_videos.cli.export_original")
 def test_happy_path_s3_key_and_etag_recorded(
-    mock_export, mock_compress, mock_upload,
-    mock_write_sidecar, mock_reimport,
-    sample_asset, cfg, work_dir,
-):
+    mock_export: MagicMock, mock_compress: MagicMock, mock_upload: MagicMock,
+    mock_write_sidecar: MagicMock, mock_reimport: MagicMock,
+    sample_asset: VideoAsset, cfg: AppConfig, work_dir: Path,
+) -> None:
     """After UPLOADED step, s3_key and s3_etag are persisted to DB."""
     original, compressed = _setup_asset_files(work_dir, sample_asset)
     mock_export.return_value = original
@@ -173,6 +176,7 @@ def test_happy_path_s3_key_and_etag_recorded(
         process_asset(sample_asset, cfg, db, dry_run=True, work_dir=work_dir)
 
     record = db.get(sample_asset.uuid)
+    assert record is not None
     assert record.s3_key is not None
     assert "test/" in record.s3_key
     assert record.s3_etag == '"etag-xyz"'
@@ -186,10 +190,10 @@ def test_happy_path_s3_key_and_etag_recorded(
 @patch("archive_videos.cli.compress_video")
 @patch("archive_videos.cli.export_original")
 def test_recovery_skips_done_assets_on_resume(
-    mock_export, mock_compress, mock_upload,
-    mock_write_sidecar, mock_reimport,
-    sample_asset, cfg, work_dir,
-):
+    mock_export: MagicMock, mock_compress: MagicMock, mock_upload: MagicMock,
+    mock_write_sidecar: MagicMock, mock_reimport: MagicMock,
+    sample_asset: VideoAsset, cfg: AppConfig, work_dir: Path,
+) -> None:
     """When resume filters out DONE assets, process_asset is never called for them."""
     original, compressed = _setup_asset_files(work_dir, sample_asset)
     mock_export.return_value = original
@@ -219,10 +223,10 @@ def test_recovery_skips_done_assets_on_resume(
 @patch("archive_videos.cli.write_sidecar")
 @patch("archive_videos.cli.export_original")
 def test_recovery_error_state_recorded_on_compress_failure(
-    mock_export, mock_compress,
-    mock_write_sidecar,
-    sample_asset, cfg, work_dir,
-):
+    mock_export: MagicMock, mock_compress: MagicMock,
+    mock_write_sidecar: MagicMock,
+    sample_asset: VideoAsset, cfg: AppConfig, work_dir: Path,
+) -> None:
     """When compress raises, exception propagates to caller (main) which records ERROR.
 
     process_asset itself does not catch exceptions — it lets them bubble up so the
@@ -241,11 +245,11 @@ def test_recovery_error_state_recorded_on_compress_failure(
         except RuntimeError:
             pass
         # Caller (main) records ERROR; process_asset itself does not catch.
-        def _update_state(uuid, filename, state, **kw):
+        def _update_state(uuid: str, filename: str, state: State, **kw: str | None) -> None:
             db.insert_or_update(VideoRecord(uuid=uuid, filename=filename, state=state, **kw))
         _update_state(
             sample_asset.uuid, sample_asset.filename, State.ERROR,
-            error_log="ffmpeg crashed",
+            error_log=str("ffmpeg crashed"),
         )
 
     record = db.get(sample_asset.uuid)
@@ -259,10 +263,10 @@ def test_recovery_error_state_recorded_on_compress_failure(
 @patch("archive_videos.cli.compress_video")
 @patch("archive_videos.cli.export_original")
 def test_recovery_resume_skips_verified_and_deleted(
-    mock_export, mock_compress, mock_upload,
-    mock_write_sidecar, mock_reimport,
-    sample_asset, cfg, work_dir,
-):
+    mock_export: MagicMock, mock_compress: MagicMock, mock_upload: MagicMock,
+    mock_write_sidecar: MagicMock, mock_reimport: MagicMock,
+    sample_asset: VideoAsset, cfg: AppConfig, work_dir: Path,
+) -> None:
     """Assets already in VERIFIED state are still processed (reimport continues)."""
     original, compressed = _setup_asset_files(work_dir, sample_asset)
     mock_export.return_value = original
@@ -297,10 +301,10 @@ def test_recovery_resume_skips_verified_and_deleted(
 @patch("archive_videos.cli.compress_video")
 @patch("archive_videos.cli.export_original")
 def test_idempotency_skips_done_assets(
-    mock_export, mock_compress, mock_upload,
-    mock_write_sidecar, mock_reimport,
-    multi_asset, cfg, work_dir,
-):
+    mock_export: MagicMock, mock_compress: MagicMock, mock_upload: MagicMock,
+    mock_write_sidecar: MagicMock, mock_reimport: MagicMock,
+    multi_asset: list[VideoAsset], cfg: AppConfig, work_dir: Path,
+) -> None:
     """Re-running on already-DONE assets skips all processing."""
     db = _build_db(work_dir.parent)
 
@@ -329,10 +333,10 @@ def test_idempotency_skips_done_assets(
 @patch("archive_videos.cli.compress_video")
 @patch("archive_videos.cli.export_original")
 def test_idempotency_partial_batch_only_reruns_pending(
-    mock_export, mock_compress, mock_upload,
-    mock_write_sidecar, mock_reimport,
-    multi_asset, cfg, work_dir,
-):
+    mock_export: MagicMock, mock_compress: MagicMock, mock_upload: MagicMock,
+    mock_write_sidecar: MagicMock, mock_reimport: MagicMock,
+    multi_asset: list[VideoAsset], cfg: AppConfig, work_dir: Path,
+) -> None:
     """Given DONE + PENDING mix, only PENDING assets are processed."""
     db = _build_db(work_dir.parent)
 
@@ -374,10 +378,10 @@ def test_idempotency_partial_batch_only_reruns_pending(
 @patch("archive_videos.cli.compress_video")
 @patch("archive_videos.cli.export_original")
 def test_idempotency_preserves_existing_done_record(
-    mock_export, mock_compress, mock_upload,
-    mock_write_sidecar, mock_reimport,
-    sample_asset, cfg, work_dir,
-):
+    mock_export: MagicMock, mock_compress: MagicMock, mock_upload: MagicMock,
+    mock_write_sidecar: MagicMock, mock_reimport: MagicMock,
+    sample_asset: VideoAsset, cfg: AppConfig, work_dir: Path,
+) -> None:
     """Re-processing skipped for DONE assets; existing DB record is untouched."""
     db = _build_db(work_dir.parent)
 
@@ -393,6 +397,7 @@ def test_idempotency_preserves_existing_done_record(
     assert sample_asset.uuid in done_uuids
 
     record = db.get(sample_asset.uuid)
+    assert record is not None
     assert record.state == State.DONE
     assert record.original_path == "/already/processed/original.mov"
     assert record.compressed_path == "/already/processed/compressed.mov"
@@ -404,10 +409,10 @@ def test_idempotency_preserves_existing_done_record(
 @patch("archive_videos.cli.write_sidecar")
 @patch("archive_videos.cli.export_original")
 def test_error_logged_on_compress_failure(
-    mock_export, mock_compress,
-    mock_write_sidecar,
-    sample_asset, cfg, work_dir,
-):
+    mock_export: MagicMock, mock_compress: MagicMock,
+    mock_write_sidecar: MagicMock,
+    sample_asset: VideoAsset, cfg: AppConfig, work_dir: Path,
+) -> None:
     """When compress fails, exception propagates; caller is responsible for ERROR state."""
     original, _ = _setup_asset_files(work_dir, sample_asset)
     (work_dir / sample_asset.uuid / f"compressed_{sample_asset.filename}").unlink()
@@ -428,6 +433,7 @@ def test_error_logged_on_compress_failure(
         ))
 
     record = db.get(sample_asset.uuid)
+    assert record is not None
     assert record.state == State.ERROR
 
 
@@ -439,10 +445,10 @@ def test_error_logged_on_compress_failure(
 @patch("archive_videos.cli.compress_video")
 @patch("archive_videos.cli.export_original")
 def test_end_to_end_no_duplicate_calls(
-    mock_export, mock_compress, mock_upload,
-    mock_write_sidecar, mock_reimport,
-    sample_asset, cfg, work_dir,
-):
+    mock_export: MagicMock, mock_compress: MagicMock, mock_upload: MagicMock,
+    mock_write_sidecar: MagicMock, mock_reimport: MagicMock,
+    sample_asset: VideoAsset, cfg: AppConfig, work_dir: Path,
+) -> None:
     """Full pipeline calls each step exactly once; final DB state is DONE."""
     original, compressed = _setup_asset_files(work_dir, sample_asset)
     mock_export.return_value = original
@@ -459,7 +465,9 @@ def test_end_to_end_no_duplicate_calls(
     assert mock_upload.call_count == 1
     assert mock_write_sidecar.call_count == 1
     assert mock_reimport.call_count == 1
-    assert db.get(sample_asset.uuid).state == State.DONE
+    record = db.get(sample_asset.uuid)
+    assert record is not None
+    assert record.state == State.DONE
 
 
 @patch("archive_videos.cli.reimport_asset")
@@ -468,10 +476,10 @@ def test_end_to_end_no_duplicate_calls(
 @patch("archive_videos.cli.compress_video")
 @patch("archive_videos.cli.export_original")
 def test_all_states_transitioned_in_sequence(
-    mock_export, mock_compress, mock_upload,
-    mock_write_sidecar, mock_reimport,
-    sample_asset, cfg, work_dir,
-):
+    mock_export: MagicMock, mock_compress: MagicMock, mock_upload: MagicMock,
+    mock_write_sidecar: MagicMock, mock_reimport: MagicMock,
+    sample_asset: VideoAsset, cfg: AppConfig, work_dir: Path,
+) -> None:
     """Verify the complete state sequence: EXPORTED → ... → DONE."""
     original, compressed = _setup_asset_files(work_dir, sample_asset)
     mock_export.return_value = original
@@ -480,15 +488,17 @@ def test_all_states_transitioned_in_sequence(
     mock_reimport.return_value = "uuid-after-import"
     db = _build_db(work_dir.parent)
 
+
     states_seen: list[State] = []
 
     orig_insert = db.insert_or_update
 
-    def tracking_insert(record: VideoRecord):
+    def tracking_insert(record: VideoRecord) -> None:
         states_seen.append(record.state)
         orig_insert(record)
 
-    db.insert_or_update = tracking_insert
+    # Monkey-patch with explicit type: convince mypy the it's the same method
+    db.insert_or_update = tracking_insert  # type: ignore[method-assign]
 
     with _mock_temp_work_dir(work_dir):
         process_asset(sample_asset, cfg, db, dry_run=True, work_dir=work_dir)

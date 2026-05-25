@@ -55,7 +55,7 @@ def asset_no_location() -> VideoAsset:
 
 # ── write_sidecar tests ──────────────────────────────────────────────────────
 
-def test_write_sidecar_creates_file(sample_asset, tmp_path):
+def test_write_sidecar_creates_file(sample_asset: VideoAsset, tmp_path: Path) -> None:
     sidecar = tmp_path / "sidecars" / "11111111.json"
     result = write_sidecar(sample_asset, sidecar)
     assert result == sidecar
@@ -63,7 +63,7 @@ def test_write_sidecar_creates_file(sample_asset, tmp_path):
     assert sidecar.read_text(encoding="utf-8")  # not empty
 
 
-def test_write_sidecar_json_structure(sample_asset, tmp_path):
+def test_write_sidecar_json_structure(sample_asset: VideoAsset, tmp_path: Path) -> None:
     sidecar = tmp_path / "11111111.json"
     write_sidecar(sample_asset, sidecar)
 
@@ -83,7 +83,7 @@ def test_write_sidecar_json_structure(sample_asset, tmp_path):
     assert payload["bitrate_mbps"] == 45.0
 
 
-def test_write_sidecar_no_location(asset_no_location, tmp_path):
+def test_write_sidecar_no_location(asset_no_location: VideoAsset, tmp_path: Path) -> None:
     sidecar = tmp_path / "22222222.json"
     write_sidecar(asset_no_location, sidecar)
 
@@ -94,7 +94,7 @@ def test_write_sidecar_no_location(asset_no_location, tmp_path):
     assert payload["keywords"] == []
 
 
-def test_write_sidecar_creates_parent_dirs(sample_asset, tmp_path):
+def test_write_sidecar_creates_parent_dirs(sample_asset: VideoAsset, tmp_path: Path) -> None:
     """Parent directory of sidecar path should be created automatically."""
     sidecar = tmp_path / "deep" / "nested" / "path" / "11111111.json"
     write_sidecar(sample_asset, sidecar)
@@ -105,7 +105,7 @@ def test_write_sidecar_creates_parent_dirs(sample_asset, tmp_path):
 
 # ── export_original dry-run tests ─────────────────────────────────────────────
 
-def test_export_original_dry_run_creates_placeholder(sample_asset, tmp_path):
+def test_export_original_dry_run_creates_placeholder(sample_asset: VideoAsset, tmp_path: Path) -> None:
     dest_dir = tmp_path / "exports"
     result = export_original(sample_asset, dest_dir, dry_run=True)
 
@@ -114,7 +114,7 @@ def test_export_original_dry_run_creates_placeholder(sample_asset, tmp_path):
     assert result.read_text() == "DRY_RUN_PLACEHOLDER"
 
 
-def test_export_original_dry_run_does_not_call_photosdb(sample_asset, tmp_path):
+def test_export_original_dry_run_does_not_call_photosdb(sample_asset: VideoAsset, tmp_path: Path) -> None:
     """Dry-run should not instantiate or call PhotosDB."""
     dest_dir = tmp_path / "exports"
     with patch("archive_videos.export.osxphotos.PhotosDB") as mock_db_cls:
@@ -122,7 +122,7 @@ def test_export_original_dry_run_does_not_call_photosdb(sample_asset, tmp_path):
         mock_db_cls.assert_not_called()
 
 
-def test_export_original_dry_run_creates_dest_dir(sample_asset, tmp_path):
+def test_export_original_dry_run_creates_dest_dir(sample_asset: VideoAsset, tmp_path: Path) -> None:
     """dest_dir should be created even if it does not exist."""
     dest_dir = tmp_path / "does_not_exist" / "exports"
     result = export_original(sample_asset, dest_dir, dry_run=True)
@@ -142,7 +142,7 @@ def _make_mock_photo(asset: VideoAsset) -> MagicMock:
     return mock_photo
 
 
-def test_export_original_execute_calls_photosdb(sample_asset, tmp_path):
+def test_export_original_execute_calls_photosdb(sample_asset: VideoAsset, tmp_path: Path) -> None:
     mock_photo = _make_mock_photo(sample_asset)
     mock_db = MagicMock()
     mock_db.get_photo.return_value = mock_photo
@@ -155,7 +155,7 @@ def test_export_original_execute_calls_photosdb(sample_asset, tmp_path):
     assert result.name == f"exported_{sample_asset.filename}"
 
 
-def test_export_original_execute_calls_export_on_photo(sample_asset, tmp_path):
+def test_export_original_execute_calls_export_on_photo(sample_asset: VideoAsset, tmp_path: Path) -> None:
     mock_photo = _make_mock_photo(sample_asset)
     mock_db = MagicMock()
     mock_db.get_photo.return_value = mock_photo
@@ -167,7 +167,7 @@ def test_export_original_execute_calls_export_on_photo(sample_asset, tmp_path):
     mock_photo.export.assert_called_once_with(str(dest_dir), overwrite=True)
 
 
-def test_export_original_execute_returns_path(sample_asset, tmp_path):
+def test_export_original_execute_returns_path(sample_asset: VideoAsset, tmp_path: Path) -> None:
     mock_photo = _make_mock_photo(sample_asset)
     mock_db = MagicMock()
     mock_db.get_photo.return_value = mock_photo
@@ -180,7 +180,7 @@ def test_export_original_execute_returns_path(sample_asset, tmp_path):
     assert result.name == f"exported_{sample_asset.filename}"
 
 
-def test_export_original_execute_list_response(sample_asset, tmp_path):
+def test_export_original_execute_list_response(sample_asset: VideoAsset, tmp_path: Path) -> None:
     """Export may return a list; function should handle the first item."""
     mock_photo = MagicMock()
     mock_photo.uuid = sample_asset.uuid
@@ -198,7 +198,7 @@ def test_export_original_execute_list_response(sample_asset, tmp_path):
     assert result.name == f"exported_{sample_asset.filename}"
 
 
-def test_export_original_execute_photo_not_found(sample_asset, tmp_path):
+def test_export_original_execute_photo_not_found(sample_asset: VideoAsset, tmp_path: Path) -> None:
     """Photo not found in library should raise FileNotFoundError."""
     mock_db = MagicMock()
     mock_db.get_photo.return_value = None

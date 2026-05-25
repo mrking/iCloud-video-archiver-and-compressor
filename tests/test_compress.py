@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import subprocess
+from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -12,15 +14,22 @@ from archive_videos.config import CompressionConfig
 
 
 class TestBuildFFmpegCmd:
-    def _cfg(self, codec="hevc", crf=23, preset="medium",
-             max_bitrate_mbps=8.0, max_height=1080, audio_bitrate="128k"):
+    def _cfg(
+        self,
+        codec: Any = "hevc",
+        crf: int = 23,
+        preset: Any = "medium",
+        max_bitrate_mbps: float = 8.0,
+        max_height: int = 1080,
+        audio_bitrate: str = "128k",
+    ) -> CompressionConfig:
         return CompressionConfig(
             codec=codec, crf=crf, preset=preset,
             max_bitrate_mbps=max_bitrate_mbps, max_height=max_height,
             audio_bitrate=audio_bitrate,
         )
 
-    def test_hevc_basic(self, tmp_path):
+    def test_hevc_basic(self, tmp_path: Path) -> None:
         inp = tmp_path / "input.mp4"
         out = tmp_path / "output.mp4"
         cmd = _build_ffmpeg_cmd(inp, out, self._cfg())
@@ -31,13 +40,13 @@ class TestBuildFFmpegCmd:
         assert "medium" in cmd
         assert str(out) in cmd
 
-    def test_h264_basic(self, tmp_path):
+    def test_h264_basic(self, tmp_path: Path) -> None:
         inp = tmp_path / "input.mp4"
         out = tmp_path / "output.mp4"
         cmd = _build_ffmpeg_cmd(inp, out, self._cfg(codec="h264"))
         assert "libx264" in cmd
 
-    def test_max_bitrate_zero_skips_flag(self, tmp_path):
+    def test_max_bitrate_zero_skips_flag(self, tmp_path: Path) -> None:
         """max_bitrate_mbps <= 0 must not add -maxrate or -bufsize."""
         inp = tmp_path / "input.mp4"
         out = tmp_path / "output.mp4"
@@ -45,7 +54,7 @@ class TestBuildFFmpegCmd:
         assert "-maxrate" not in cmd
         assert "-bufsize" not in cmd
 
-    def test_max_bitrate_positive_adds_flag(self, tmp_path):
+    def test_max_bitrate_positive_adds_flag(self, tmp_path: Path) -> None:
         """max_bitrate_mbps > 0 must add -maxrate and -bufsize."""
         inp = tmp_path / "input.mp4"
         out = tmp_path / "output.mp4"
@@ -55,7 +64,7 @@ class TestBuildFFmpegCmd:
         assert "-bufsize" in cmd
         assert "40.0M" in cmd
 
-    def test_audio_copy(self, tmp_path):
+    def test_audio_copy(self, tmp_path: Path) -> None:
         """audio_bitrate='copy' must use -c:a copy with no -b:a."""
         inp = tmp_path / "input.mp4"
         out = tmp_path / "output.mp4"
@@ -65,7 +74,7 @@ class TestBuildFFmpegCmd:
         # No -b:a flag when copying audio
         assert "-b:a" not in cmd
 
-    def test_audio_reencode(self, tmp_path):
+    def test_audio_reencode(self, tmp_path: Path) -> None:
         """Non-copy audio_bitrate must use -c:a aac -b:a <bitrate>."""
         inp = tmp_path / "input.mp4"
         out = tmp_path / "output.mp4"
@@ -75,21 +84,21 @@ class TestBuildFFmpegCmd:
         b_idx = cmd.index("-b:a")
         assert cmd[b_idx + 1] == "256k"
 
-    def test_metadata_preserved(self, tmp_path):
+    def test_metadata_preserved(self, tmp_path: Path) -> None:
         inp = tmp_path / "input.mp4"
         out = tmp_path / "output.mp4"
         cmd = _build_ffmpeg_cmd(inp, out, self._cfg())
         assert "-map_metadata" in cmd
         assert "0" in cmd
 
-    def test_hevc_tag_for_apple(self, tmp_path):
+    def test_hevc_tag_for_apple(self, tmp_path: Path) -> None:
         inp = tmp_path / "input.mp4"
         out = tmp_path / "output.mp4"
         cmd = _build_ffmpeg_cmd(inp, out, self._cfg(codec="hevc"))
         assert "-tag:v" in cmd
         assert "hvc1" in cmd
 
-    def test_h264_no_hevc_tag(self, tmp_path):
+    def test_h264_no_hevc_tag(self, tmp_path: Path) -> None:
         inp = tmp_path / "input.mp4"
         out = tmp_path / "output.mp4"
         cmd = _build_ffmpeg_cmd(inp, out, self._cfg(codec="h264"))
@@ -98,7 +107,7 @@ class TestBuildFFmpegCmd:
 
 class TestCompressVideo:
     @patch("subprocess.run")
-    def test_compress_success_dry_run(self, mock_run, tmp_path):
+    def test_compress_success_dry_run(self, mock_run: Any, tmp_path: Path) -> None:
         cfg = CompressionConfig()
         inp = tmp_path / "video001_original.mp4"
         inp.write_bytes(b"fake video content")
@@ -118,7 +127,7 @@ class TestCompressVideo:
         assert "ffprobe" in mock_run.call_args_list[0][0][0]
 
     @patch("subprocess.run")
-    def test_compress_failure_raises_runtime_error(self, mock_run, tmp_path):
+    def test_compress_failure_raises_runtime_error(self, mock_run: Any, tmp_path: Path) -> None:
         cfg = CompressionConfig()
         inp = tmp_path / "video001_original.mp4"
         inp.write_bytes(b"fake video content")
@@ -132,7 +141,7 @@ class TestCompressVideo:
             compress_video(inp, out, cfg, dry_run=False)
 
     @patch("subprocess.run")
-    def test_skip_already_compressed(self, mock_run, tmp_path):
+    def test_skip_already_compressed(self, mock_run: Any, tmp_path: Path) -> None:
         """Videos with bitrate below threshold should be skipped."""
         cfg = CompressionConfig()
         inp = tmp_path / "video001_original.mp4"
