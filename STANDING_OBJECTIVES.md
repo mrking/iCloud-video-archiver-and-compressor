@@ -43,3 +43,7 @@ Checkpoint: 2026-05-29 08:51 GMT+8 — periodic validation: git pull --ff-only (
 Checkpoint: 2026-05-29 10:10 GMT+8 — periodic validation: git pull --ff-only (already up to date), pytest -q (102 passed in 0.93s), mypy 0 errors in 10 source files, git diff --check clean, VALIDATION_OK
 
 Checkpoint: 2026-05-29 10:41 GMT+8 — periodic validation: git pull --ff-only (already up to date), pytest -q (102 passed in 0.99s), mypy 0 errors in 10 source files, git diff --check clean, VALIDATION_OK
+
+Checkpoint: 2026-05-30 18:25 GMT+8 — OBJ-002 merge origin/main (had local STANDING_OBJECTIVES.md conflict; resolved by taking upstream checkpoints; tests/test_utils.py added cleanly), pytest -q (102 passed), mypy 0 errors, git diff --check clean, git push to origin/main ✅
+
+COMPLETED_VERIFIED: 930def6
