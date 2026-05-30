@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import os
+import pathlib
 import subprocess
 import sys
 import time
@@ -69,6 +71,7 @@ def _run_in_subprocess(code: str) -> subprocess.CompletedProcess:
         [sys.executable, "-c", code],
         capture_output=True,
         text=True,
+        env={**os.environ, "PYTHONPATH": str(pathlib.Path(__file__).resolve().parent.parent)},
     )
 
 
